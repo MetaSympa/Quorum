@@ -22,8 +22,7 @@ describe("auditLogQuerySchema", () => {
     if (!result.success) return;
     expect(result.data.page).toBe(1);
     expect(result.data.limit).toBe(20);
-    expect(result.data.entityType).toBeUndefined();
-    expect(result.data.action).toBeUndefined();
+    expect(result.data.category).toBeUndefined();
     expect(result.data.dateFrom).toBeUndefined();
     expect(result.data.dateTo).toBeUndefined();
     expect(result.data.performedById).toBeUndefined();
@@ -31,8 +30,7 @@ describe("auditLogQuerySchema", () => {
 
   it("accepts all valid params", () => {
     const result = auditLogQuerySchema.safeParse({
-      entityType: "Transaction",
-      action: "create_transaction",
+      category: "SPONSORSHIP",
       dateFrom: "2026-01-01",
       dateTo: "2026-03-31",
       performedById: "550e8400-e29b-41d4-a716-446655440000",
@@ -41,8 +39,7 @@ describe("auditLogQuerySchema", () => {
     });
     expect(result.success).toBe(true);
     if (!result.success) return;
-    expect(result.data.entityType).toBe("Transaction");
-    expect(result.data.action).toBe("create_transaction");
+    expect(result.data.category).toBe("SPONSORSHIP");
     expect(result.data.dateFrom).toBe("2026-01-01");
     expect(result.data.dateTo).toBe("2026-03-31");
     expect(result.data.performedById).toBe("550e8400-e29b-41d4-a716-446655440000");
@@ -84,29 +81,15 @@ describe("auditLogQuerySchema", () => {
   });
 
   it("accepts performedById omitted (undefined)", () => {
-    const result = auditLogQuerySchema.safeParse({ entityType: "Member" });
+    const result = auditLogQuerySchema.safeParse({ category: "OTHER" });
     expect(result.success).toBe(true);
     if (!result.success) return;
     expect(result.data.performedById).toBeUndefined();
   });
 
-  it("rejects entityType over 100 chars", () => {
+  it("rejects invalid category", () => {
     const result = auditLogQuerySchema.safeParse({
-      entityType: "A".repeat(101),
-    });
-    expect(result.success).toBe(false);
-  });
-
-  it("accepts entityType exactly 100 chars", () => {
-    const result = auditLogQuerySchema.safeParse({
-      entityType: "A".repeat(100),
-    });
-    expect(result.success).toBe(true);
-  });
-
-  it("rejects action over 100 chars", () => {
-    const result = auditLogQuerySchema.safeParse({
-      action: "x".repeat(101),
+      category: "DONATION",
     });
     expect(result.success).toBe(false);
   });

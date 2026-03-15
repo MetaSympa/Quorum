@@ -685,9 +685,9 @@ describe("GET /api/audit-log", () => {
     mockPrisma.auditLog.findMany.mockResolvedValue([
       {
         id: "al1",
-        entityType: "TRANSACTION",
-        entityId: "t1",
-        action: "APPROVED",
+        transactionSnapshot: { category: "SPONSORSHIP", amount: "5000" },
+        transactionId: "t1",
+        performedById: "u1",
         createdAt: new Date(),
         performedBy: { id: "u1", name: "Admin", role: "ADMIN", memberId: "M1" },
         transaction: null,
@@ -700,6 +700,48 @@ describe("GET /api/audit-log", () => {
     expect(json).toHaveProperty("data");
     expect(json).toHaveProperty("pagination");
   });
+
+  it("applies transaction category filter", async () => {
+    mockGetAuthSession.mockResolvedValue(operatorSession);
+    mockPrisma.auditLog.count.mockResolvedValue(0);
+    mockPrisma.auditLog.findMany.mockResolvedValue([]);
+
+    const res = await GET(mockRequest("GET", "/api/audit-log?category=SPONSORSHIP"));
+    expect(res.status).toBe(200);
+    expect(mockPrisma.auditLog.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          transaction: {
+            is: {
+              approvalStatus: "APPROVED",
+              category: "SPONSORSHIP",
+            },
+          },
+        }),
+      })
+    );
+  });
+
+  it("includes only approved transactions in audit results", async () => {
+    mockGetAuthSession.mockResolvedValue(operatorSession);
+    mockPrisma.auditLog.count.mockResolvedValue(0);
+    mockPrisma.auditLog.findMany.mockResolvedValue([]);
+
+    const res = await GET(mockRequest("GET", "/api/audit-log"));
+    expect(res.status).toBe(200);
+    expect(mockPrisma.auditLog.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          transaction: {
+            is: expect.objectContaining({
+              approvalStatus: "APPROVED",
+            }),
+          },
+        }),
+      })
+    );
+  });
+
 });
 
 // =========================================================================

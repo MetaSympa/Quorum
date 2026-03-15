@@ -4,10 +4,11 @@
  * Financial Audit Log — /dashboard/audit-log
  *
  * Read-only page. No create/edit/delete buttons.
- * Columns: Date/Time, Entity Type, Entity ID (truncated), Action, Performer, Details
- * Detail modal on row click: full previousData + newData (JSON), transaction details
+ * Columns: Date/Time, Category, Sender/Receiver, Payment Mode, Amount,
+ * Performer, Details
+ * Detail modal on row click: approved snapshot + linked transaction details
  *   (amount, category, payment mode, sender), approval source badge, performer info.
- * Filters: entity type, action, date range, performer search (by name text → maps to performedById).
+ * Filters: transaction category, date range.
  */
 
 import { useEffect, useState, useCallback } from "react";
@@ -75,12 +76,8 @@ interface TransactionDetail {
 
 interface AuditEntry {
   id: string;
-  entityType: string;
-  entityId: string;
-  action: string;
-  previousData: Record<string, unknown> | null;
-  newData: Record<string, unknown>;
-  transactionId: string | null;
+  transactionSnapshot: Record<string, unknown>;
+  transactionId: string;
   performedById: string;
   createdAt: string;
   performedBy: Performer;
@@ -120,24 +117,62 @@ function approvalSourceVariant(source: string): "default" | "secondary" | "destr
   return source === "RAZORPAY_WEBHOOK" ? "default" : "secondary";
 }
 
-/** Entity type badge color */
-function entityTypeBadgeVariant(et: string): "default" | "secondary" | "outline" {
-  if (et.toLowerCase().includes("transaction")) return "default";
-  if (et.toLowerCase().includes("member")) return "secondary";
-  return "outline";
+function titleCase(value: string): string {
+  return value
+    .toLowerCase()
+    .split("_")
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
 }
 
-// Financial entity types and actions only
-const FINANCIAL_ENTITY_TYPES = ["Transaction", "Sponsor", "SponsorLink"];
+function formatCategoryLabel(category: string): string {
+  switch (category) {
+    case "MEMBERSHIP_FEE":
+      return "Membership Fee";
+    case "APPLICATION_FEE":
+      return "Application Fee";
+    case "SPONSORSHIP":
+      return "Sponsorship";
+    case "EXPENSE":
+      return "Expense";
+    case "OTHER":
+      return "Other";
+    default:
+      return titleCase(category);
+  }
+}
 
-const ENTITY_TYPES = FINANCIAL_ENTITY_TYPES;
+function getEntryCategory(entry: AuditEntry): string | null {
+  if (entry.transaction?.category) return entry.transaction.category;
+  return typeof entry.transactionSnapshot.category === "string"
+    ? entry.transactionSnapshot.category
+    : null;
+}
 
-const ACTIONS = [
-  "create_transaction",
-  "approve_transaction",
-  "reject_transaction",
-  "payment_received",
-  "sponsor_payment_received",
+function isIncomingEntry(entry: AuditEntry): boolean {
+  if (entry.transaction?.type) {
+    return entry.transaction.type === "CASH_IN";
+  }
+
+  return entry.transactionSnapshot.type === "CASH_IN";
+}
+
+function getCategoryBadgeClass(entry: AuditEntry): string {
+  return isIncomingEntry(entry)
+    ? "border-green-200 bg-green-50 text-green-700"
+    : "border-red-200 bg-red-50 text-red-700";
+}
+
+function getSenderReceiverName(entry: AuditEntry): string {
+  return entry.transaction?.senderName ?? String(entry.transactionSnapshot.senderName ?? "—");
+}
+
+const TRANSACTION_CATEGORIES = [
+  "MEMBERSHIP_FEE",
+  "APPLICATION_FEE",
+  "SPONSORSHIP",
+  "EXPENSE",
+  "OTHER",
 ];
 
 // ---------------------------------------------------------------------------
@@ -172,11 +207,9 @@ export default function AuditLogPage() {
   const [error, setError] = useState<string | null>(null);
 
   // Filters
-  const [filterEntityType, setFilterEntityType] = useState<string>("__all__");
-  const [filterAction, setFilterAction] = useState<string>("__all__");
   const [filterDateFrom, setFilterDateFrom] = useState("");
   const [filterDateTo, setFilterDateTo] = useState("");
-  const [filterPerformer, setFilterPerformer] = useState("");
+  const [filterCategory, setFilterCategory] = useState<string>("__all__");
   const [filterPage, setFilterPage] = useState(1);
 
   // Detail modal
@@ -192,13 +225,7 @@ export default function AuditLogPage() {
 
     try {
       const params = new URLSearchParams();
-      if (filterEntityType && filterEntityType !== "__all__") {
-        params.set("entityType", filterEntityType);
-      } else {
-        // Always restrict to financial entity types
-        params.set("entityTypes", FINANCIAL_ENTITY_TYPES.join(","));
-      }
-      if (filterAction && filterAction !== "__all__") params.set("action", filterAction);
+      if (filterCategory && filterCategory !== "__all__") params.set("category", filterCategory);
       if (filterDateFrom) params.set("dateFrom", filterDateFrom);
       if (filterDateTo) params.set("dateTo", filterDateTo);
       params.set("page", String(filterPage));
@@ -217,7 +244,7 @@ export default function AuditLogPage() {
     } finally {
       setLoading(false);
     }
-  }, [filterEntityType, filterAction, filterDateFrom, filterDateTo, filterPage]);
+  }, [filterCategory, filterDateFrom, filterDateTo, filterPage]);
 
   useEffect(() => {
     if (status === "authenticated") {
@@ -370,44 +397,23 @@ export default function AuditLogPage() {
           <CardTitle className="text-base">Filters</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
-            {/* Entity Type */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+            {/* Transaction Category */}
             <Select
-              value={filterEntityType}
+              value={filterCategory}
               onValueChange={(v) => {
-                setFilterEntityType(v);
+                setFilterCategory(v);
                 setFilterPage(1);
               }}
             >
               <SelectTrigger>
-                <SelectValue placeholder="Entity type" />
+                <SelectValue placeholder="Transaction category" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="__all__">All entity types</SelectItem>
-                {ENTITY_TYPES.map((et) => (
-                  <SelectItem key={et} value={et}>
-                    {et}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-
-            {/* Action */}
-            <Select
-              value={filterAction}
-              onValueChange={(v) => {
-                setFilterAction(v);
-                setFilterPage(1);
-              }}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Action" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="__all__">All actions</SelectItem>
-                {ACTIONS.map((a) => (
-                  <SelectItem key={a} value={a}>
-                    {a}
+                <SelectItem value="__all__">All categories</SelectItem>
+                {TRANSACTION_CATEGORIES.map((category) => (
+                  <SelectItem key={category} value={category}>
+                    {formatCategoryLabel(category)}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -458,10 +464,10 @@ export default function AuditLogPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Date/Time</TableHead>
-                  <TableHead>Entity Type</TableHead>
-                  <TableHead>Action</TableHead>
-                  <TableHead className="text-right">Amount</TableHead>
+                  <TableHead>Category</TableHead>
                   <TableHead>Sender / Receiver</TableHead>
+                  <TableHead>Payment Mode</TableHead>
+                  <TableHead className="text-right">Amount</TableHead>
                   <TableHead>Performer</TableHead>
                   <TableHead className="text-right">Details</TableHead>
                 </TableRow>
@@ -476,21 +482,23 @@ export default function AuditLogPage() {
                     <TableCell className="whitespace-nowrap text-sm">
                       {formatDateTime(entry.createdAt)}
                     </TableCell>
-                    <TableCell>
-                      <Badge variant={entityTypeBadgeVariant(entry.entityType)} className="text-xs">
-                        {entry.entityType}
-                      </Badge>
+                    <TableCell className="text-sm">
+                      {getEntryCategory(entry) ? (
+                        <Badge variant="outline" className={`text-xs ${getCategoryBadgeClass(entry)}`}>
+                          {formatCategoryLabel(getEntryCategory(entry)!)}
+                        </Badge>
+                      ) : "—"}
                     </TableCell>
-                    <TableCell className="text-sm font-medium">{entry.action}</TableCell>
+                    <TableCell className="text-sm text-muted-foreground">{getSenderReceiverName(entry)}</TableCell>
+                    <TableCell className="text-sm text-muted-foreground">
+                      {entry.transaction?.paymentMode ?? "—"}
+                    </TableCell>
                     <TableCell className="text-right font-mono font-medium text-sm">
                       {entry.transaction ? (
-                        <span className={entry.transaction.type === "CASH_IN" ? "text-green-700" : "text-red-700"}>
+                        <span className={isIncomingEntry(entry) ? "text-green-700" : "text-red-700"}>
                           {formatAmount(entry.transaction.amount)}
                         </span>
                       ) : "—"}
-                    </TableCell>
-                    <TableCell className="text-sm text-muted-foreground">
-                      {entry.transaction?.senderName ?? "—"}
                     </TableCell>
                     <TableCell className="text-sm">
                       {entry.performedBy?.name ?? "SYSTEM"}
@@ -562,13 +570,17 @@ export default function AuditLogPage() {
                 <span className="text-muted-foreground">Date/Time</span>
                 <span className="font-medium">{formatDateTime(selectedEntry.createdAt)}</span>
 
-                <span className="text-muted-foreground">Entity Type</span>
-                <Badge variant={entityTypeBadgeVariant(selectedEntry.entityType)} className="text-xs w-fit">
-                  {selectedEntry.entityType}
-                </Badge>
+                <span className="text-muted-foreground">Category</span>
+                <div>
+                  {getEntryCategory(selectedEntry) ? (
+                    <Badge variant="outline" className={`text-xs ${getCategoryBadgeClass(selectedEntry)}`}>
+                      {formatCategoryLabel(getEntryCategory(selectedEntry)!)}
+                    </Badge>
+                  ) : "—"}
+                </div>
 
-                <span className="text-muted-foreground">Action</span>
-                <span className="font-medium">{selectedEntry.action}</span>
+                <span className="text-muted-foreground">Sender / Receiver</span>
+                <span className="font-medium">{getSenderReceiverName(selectedEntry)}</span>
 
                 <span className="text-muted-foreground">Performed By</span>
                 <span className="font-medium">
@@ -599,16 +611,10 @@ export default function AuditLogPage() {
                 </div>
               )}
 
-              {/* Previous data */}
+              {/* Approved snapshot */}
               <div>
-                <h3 className="font-semibold text-sm mb-2">Previous Data</h3>
-                <JsonBlock data={selectedEntry.previousData} />
-              </div>
-
-              {/* New data */}
-              <div>
-                <h3 className="font-semibold text-sm mb-2">New Data</h3>
-                <JsonBlock data={selectedEntry.newData} />
+                <h3 className="font-semibold text-sm mb-2">Approved Snapshot</h3>
+                <JsonBlock data={selectedEntry.transactionSnapshot} />
               </div>
             </div>
           )}

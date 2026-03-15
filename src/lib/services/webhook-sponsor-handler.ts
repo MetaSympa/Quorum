@@ -27,7 +27,7 @@
 
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { logAudit, logActivity } from "@/lib/audit";
+import { buildTransactionAuditSnapshot, logAudit, logActivity } from "@/lib/audit";
 import { generateReceiptNumber } from "@/lib/receipt";
 
 // ---------------------------------------------------------------------------
@@ -211,25 +211,14 @@ export async function handleSponsorWebhookPayment(
   // Log to both audit and activity logs (non-blocking)
   await Promise.all([
     logAudit({
-      entityType: "Transaction",
-      entityId: result.transaction.id,
-      action: "sponsor_payment_received",
-      previousData: null,
-      newData: {
-        id: result.transaction.id,
-        type: "CASH_IN",
-        category: "SPONSORSHIP",
-        amount: result.transaction.amount.toString(),
-        paymentMode,
+      transactionId: result.transaction.id,
+      transactionSnapshot: buildTransactionAuditSnapshot({
+        ...result.transaction,
         sponsorPurpose,
         sponsorId: sponsorId ?? null,
-        approvalStatus: "APPROVED",
-        approvalSource: "RAZORPAY_WEBHOOK",
         razorpayPaymentId,
-        receiptNumber: result.receiptNumber,
         senderName: senderName ?? null,
-      },
-      transactionId: result.transaction.id,
+      }),
       performedById: systemUserId,
     }),
     logActivity({

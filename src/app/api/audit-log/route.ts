@@ -2,9 +2,10 @@
  * GET /api/audit-log — list financial audit log entries (read-only, append-only)
  *
  * Auth: ADMIN + OPERATOR (both get same read-only data)
- * Filters: entityType, action, dateFrom, dateTo, performedById, page, limit
- * Includes: performer (name), linked transaction details
+ * Filters: category, dateFrom, dateTo, performedById, page, limit
+ * Includes: performer (name), linked transaction details, approved snapshot
  * Order: createdAt DESC
+ * Scope: approved transactions only
  *
  * Immutability (T27):
  *   AuditLog is append-only — no mutations are permitted via the API.
@@ -29,9 +30,7 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = request.nextUrl;
     const parseResult = auditLogQuerySchema.safeParse({
-      entityType: searchParams.get("entityType") ?? undefined,
-      entityTypes: searchParams.get("entityTypes") ?? undefined,
-      action: searchParams.get("action") ?? undefined,
+      category: searchParams.get("category") ?? undefined,
       dateFrom: searchParams.get("dateFrom") ?? undefined,
       dateTo: searchParams.get("dateTo") ?? undefined,
       performedById: searchParams.get("performedById") ?? undefined,
@@ -46,21 +45,18 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const { entityType, entityTypes, action, dateFrom, dateTo, performedById, page, limit } =
-      parseResult.data;
+    const { category, dateFrom, dateTo, performedById, page, limit } = parseResult.data;
 
     // Build where clause
-    const where: Prisma.AuditLogWhereInput = {};
+    const where: Prisma.AuditLogWhereInput = {
+      transaction: {
+        is: {
+          approvalStatus: "APPROVED",
+          ...(category ? { category } : {}),
+        },
+      },
+    };
 
-    if (entityTypes) {
-      const types = entityTypes.split(",").map((t) => t.trim()).filter(Boolean);
-      if (types.length > 0) where.entityType = { in: types };
-    } else if (entityType) {
-      where.entityType = { contains: entityType, mode: "insensitive" };
-    }
-    if (action) {
-      where.action = { contains: action, mode: "insensitive" };
-    }
     if (performedById) {
       where.performedById = performedById;
     }
@@ -84,7 +80,12 @@ export async function GET(request: NextRequest) {
         orderBy: { createdAt: "desc" },
         skip: (page - 1) * limit,
         take: limit,
-        include: {
+        select: {
+          id: true,
+          transactionSnapshot: true,
+          transactionId: true,
+          performedById: true,
+          createdAt: true,
           performedBy: {
             select: { id: true, name: true, role: true, memberId: true },
           },

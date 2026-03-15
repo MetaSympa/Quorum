@@ -11,13 +11,14 @@
  *     be updated or deleted by any user (even admin) — 403 returned.
  *   - Admin-created transactions are auto-approved (approvalStatus=APPROVED).
  *   - Operator-created transactions start as PENDING in the Approval queue.
- *   - All mutations are logged to both AuditLog and ActivityLog.
+ *   - Approved transaction creation is logged to AuditLog; all mutations are
+ *     logged to ActivityLog.
  *   - Amounts stored as Decimal(12,2) — passed in as numbers from Zod.
  */
 
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { logAudit, logActivity } from "@/lib/audit";
+import { buildTransactionAuditSnapshot, logAudit, logActivity } from "@/lib/audit";
 import type {
   CreateTransactionInput,
   UpdateTransactionInput,
@@ -268,24 +269,8 @@ export async function createTransaction(
   // Log to both audit and activity (non-blocking)
   await Promise.all([
     logAudit({
-      entityType: "Transaction",
-      entityId: transaction.id,
-      action: "transaction_created",
-      previousData: null,
-      newData: {
-        id: transaction.id,
-        type: transaction.type,
-        category: transaction.category,
-        amount: transaction.amount.toString(),
-        paymentMode: transaction.paymentMode,
-        description: transaction.description,
-        approvalStatus: transaction.approvalStatus,
-        approvalSource: transaction.approvalSource,
-        enteredById: transaction.enteredById,
-        approvedById: transaction.approvedById,
-        approvedAt: transaction.approvedAt?.toISOString(),
-      },
       transactionId: transaction.id,
+      transactionSnapshot: buildTransactionAuditSnapshot(transaction),
       performedById: requestedBy.id,
     }),
     logActivity({
@@ -387,15 +372,6 @@ export async function updateTransaction(
   }
 
   // Admin path: direct update
-  const previousSnapshot = {
-    type: existing.type,
-    category: existing.category,
-    amount: existing.amount.toString(),
-    paymentMode: existing.paymentMode,
-    description: existing.description,
-    sponsorPurpose: existing.sponsorPurpose,
-  };
-
   const updated = await prisma.transaction.update({
     where: { id },
     data: {
@@ -421,30 +397,12 @@ export async function updateTransaction(
     },
   });
 
-  await Promise.all([
-    logAudit({
-      entityType: "Transaction",
-      entityId: id,
-      action: "transaction_updated",
-      previousData: previousSnapshot,
-      newData: {
-        type: updated.type,
-        category: updated.category,
-        amount: updated.amount.toString(),
-        paymentMode: updated.paymentMode,
-        description: updated.description,
-        sponsorPurpose: updated.sponsorPurpose,
-      },
-      transactionId: id,
-      performedById: requestedBy.id,
-    }),
-    logActivity({
+  await logActivity({
       userId: requestedBy.id,
       action: "transaction_updated",
       description: `Admin ${requestedBy.name} updated transaction ${id}`,
       metadata: { transactionId: id, changes: data },
-    }),
-  ]);
+    });
 
   return { success: true, data: {}, action: "direct" };
 }
@@ -524,42 +482,17 @@ export async function deleteTransaction(
   }
 
   // Admin path: soft-delete (mark as REJECTED to void the transaction)
-  const snapshot = {
-    id: existing.id,
-    type: existing.type,
-    category: existing.category,
-    amount: existing.amount.toString(),
-    paymentMode: existing.paymentMode,
-    description: existing.description,
-    approvalStatus: existing.approvalStatus,
-  };
-
   await prisma.transaction.update({
     where: { id },
     data: { approvalStatus: "REJECTED" },
   });
 
-  await Promise.all([
-    logAudit({
-      entityType: "Transaction",
-      entityId: id,
-      action: "transaction_deleted",
-      previousData: snapshot,
-      newData: {
-        ...snapshot,
-        approvalStatus: "REJECTED",
-        deletedBy: requestedBy.id,
-      },
-      transactionId: id,
-      performedById: requestedBy.id,
-    }),
-    logActivity({
+  await logActivity({
       userId: requestedBy.id,
       action: "transaction_deleted",
       description: `Admin ${requestedBy.name} voided (soft-deleted) transaction ${id}`,
       metadata: { transactionId: id },
-    }),
-  ]);
+    });
 
   return { success: true, data: {}, action: "direct" };
 }

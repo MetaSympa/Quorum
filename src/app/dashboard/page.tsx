@@ -76,9 +76,7 @@ interface AdminStats {
   }>;
   recentAudit: Array<{
     id: string;
-    entityType: string;
-    entityId: string;
-    action: string;
+    transactionSnapshot: Record<string, unknown>;
     createdAt: string;
     performedBy: { id: string; name: string; role: string; memberId: string };
   }>;
@@ -399,10 +397,10 @@ function AdminDashboard({ stats }: { stats: AdminStats }) {
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-1">
                           <Badge variant="outline" className="text-[10px]">
-                            {entry.entityType}
+                            {String(entry.transactionSnapshot.category ?? "Approved")}
                           </Badge>
                           <span className="font-mono text-xs">
-                            {entry.action}
+                            {formatCurrency(Number(entry.transactionSnapshot.amount ?? 0))}
                           </span>
                         </div>
                         <p className="mt-0.5 flex items-center gap-1 text-xs text-muted-foreground">

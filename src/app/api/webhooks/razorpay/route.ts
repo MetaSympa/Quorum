@@ -35,7 +35,7 @@ import { NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { verifyWebhookSignature, paiseToRupees } from "@/lib/razorpay";
-import { logAudit, logActivity } from "@/lib/audit";
+import { buildTransactionAuditSnapshot, logAudit, logActivity } from "@/lib/audit";
 import { MEMBERSHIP_FEES, APPLICATION_FEE } from "@/types";
 import type { MembershipType, SponsorPurpose } from "@/types";
 import {
@@ -448,30 +448,18 @@ async function handlePaymentCaptured(
   if (created) {
     await Promise.all([
       logAudit({
-        entityType: "Transaction",
-        entityId: created.id,
-        action: "razorpay_payment_captured",
-        previousData: null,
-        newData: {
-          id: created.id,
-          type: created.type,
-          category: created.category,
-          amount: created.amount.toString(),
-          paymentMode: created.paymentMode,
-          approvalStatus: created.approvalStatus,
-          approvalSource: created.approvalSource,
+        transactionId: created.id,
+        transactionSnapshot: buildTransactionAuditSnapshot({
+          ...created,
+          description: `${category} payment captured via Razorpay`,
           razorpayPaymentId: paymentId,
           razorpayOrderId: payment.order_id ?? null,
           senderName,
           senderUpiId,
           senderBankAccount,
           senderBankName,
-          receiptNumber: created.receiptNumber,
-          memberId: created.memberId,
-          sponsorId: created.sponsorId,
           enteredById: systemUid,
-        },
-        transactionId: created.id,
+        }),
         performedById: systemUid,
       }),
       logActivity({

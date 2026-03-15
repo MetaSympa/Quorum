@@ -774,20 +774,12 @@ describe("auditLogQuerySchema", () => {
     }
   });
 
-  it("accepts entityType string", () => {
-    expect(
-      auditLogQuerySchema.safeParse({ entityType: "User" }).success
-    ).toBe(true);
+  it("accepts valid category filter", () => {
+    expect(auditLogQuerySchema.safeParse({ category: "SPONSORSHIP" }).success).toBe(true);
   });
 
-  it("rejects entityType exceeding 100 characters", () => {
-    expect(
-      auditLogQuerySchema.safeParse({ entityType: "x".repeat(101) }).success
-    ).toBe(false);
-  });
-
-  it("accepts action string", () => {
-    expect(auditLogQuerySchema.safeParse({ action: "CREATE" }).success).toBe(true);
+  it("rejects invalid category filter", () => {
+    expect(auditLogQuerySchema.safeParse({ category: "DONATION" }).success).toBe(false);
   });
 
   it("accepts performedById as valid UUID", () => {

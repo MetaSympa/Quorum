@@ -6,8 +6,7 @@
  *   - Get a single approval with full details
  *   - approveEntry: apply proposed change to DB atomically, log to activity
  *                   and to audit only for financial entity types
- *   - rejectEntry: discard change, update approval record, log to activity
- *                  and to audit only for financial entity types
+ *   - rejectEntry: discard change, update approval record, log only to activity
  *
  * Entity-type dispatch on approval:
  *   MEMBER_ADD     → create User + Member from newData (generates memberId, temp password)
@@ -23,7 +22,7 @@ import bcrypt from "bcryptjs";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { generateMemberId, generateSubMemberId, nextSubMemberIndex } from "@/lib/member-id";
-import { logAudit, logActivity } from "@/lib/audit";
+import { buildTransactionAuditSnapshot, logAudit, logActivity } from "@/lib/audit";
 import type { ApprovalListQuery } from "@/lib/validators";
 
 // ---------------------------------------------------------------------------
@@ -68,10 +67,6 @@ export interface ServiceResult<T> {
   data?: T;
   error?: string;
   status?: number;
-}
-
-function isFinancialApprovalEntity(entityType: string): boolean {
-  return entityType === "TRANSACTION" || entityType === "MEMBERSHIP";
 }
 
 // ---------------------------------------------------------------------------
@@ -197,7 +192,7 @@ export async function getApproval(
  * 1. Validates the approval exists and is still PENDING.
  * 2. Dispatches to entity-type handler inside a Prisma $transaction.
  * 3. Updates the Approval record (status=APPROVED, reviewedBy, reviewedAt, notes).
- * 4. Logs to AuditLog + ActivityLog.
+ * 4. Logs approved transactions to AuditLog and all actions to ActivityLog.
  *
  * Returns the updated approval on success.
  */
@@ -225,9 +220,7 @@ export async function approveEntry(
     };
   }
 
-  // Store outcome data gathered during transaction for logging
   let logEntityId = approval.entityId;
-  let logNewData: Record<string, unknown> = {};
   let tempPasswordForMember: string | undefined;
   let newMemberEmail: string | undefined;
 
@@ -240,35 +233,30 @@ export async function approveEntry(
             newMemberEmail = email;
           });
           logEntityId = approval.entityId;
-          logNewData = (approval.newData as Record<string, unknown>) ?? {};
           break;
         }
 
         case "MEMBER_EDIT": {
           await handleMemberEdit(tx, approval);
           logEntityId = approval.entityId;
-          logNewData = (approval.newData as Record<string, unknown>) ?? {};
           break;
         }
 
         case "MEMBER_DELETE": {
           await handleMemberDelete(tx, approval);
           logEntityId = approval.entityId;
-          logNewData = { membershipStatus: "SUSPENDED" };
           break;
         }
 
         case "TRANSACTION": {
           await handleTransactionApprove(tx, approval, reviewedBy.id);
           logEntityId = approval.entityId;
-          logNewData = { approvalStatus: "APPROVED", approvedById: reviewedBy.id };
           break;
         }
 
         case "MEMBERSHIP": {
           await handleMembershipApprove(tx, approval);
           logEntityId = approval.entityId;
-          logNewData = { status: "APPROVED" };
           break;
         }
 
@@ -288,18 +276,18 @@ export async function approveEntry(
       });
     });
 
-    if (isFinancialApprovalEntity(approval.entityType)) {
+    if (approval.entityType === "TRANSACTION") {
+      const approvedTransaction = await prisma.transaction.findUnique({
+        where: { id: logEntityId },
+      });
+
+      if (!approvedTransaction) {
+        throw new Error("Approved transaction not found for audit logging");
+      }
+
       await logAudit({
-        entityType: "APPROVAL",
-        entityId: id,
-        action: "approval_approved",
-        previousData: { status: "PENDING" },
-        newData: {
-          status: "APPROVED",
-          entityType: approval.entityType,
-          entityId: logEntityId,
-          ...logNewData,
-        },
+        transactionId: logEntityId,
+        transactionSnapshot: buildTransactionAuditSnapshot(approvedTransaction),
         performedById: reviewedBy.id,
       });
     }
@@ -345,7 +333,7 @@ export async function approveEntry(
  * For MEMBER_ADD / MEMBER_EDIT / MEMBER_DELETE: no DB change to the entity
  * (proposed change is discarded).
  *
- * Always updates Approval record and logs to audit + activity.
+ * Always updates the Approval record and logs only to activity.
  */
 export async function rejectEntry(
   id: string,
@@ -398,21 +386,6 @@ export async function rejectEntry(
         },
       });
     });
-
-    if (isFinancialApprovalEntity(approval.entityType)) {
-      await logAudit({
-        entityType: "APPROVAL",
-        entityId: id,
-        action: "approval_rejected",
-        previousData: { status: "PENDING" },
-        newData: {
-          status: "REJECTED",
-          entityType: approval.entityType,
-          entityId: approval.entityId,
-        },
-        performedById: reviewedBy.id,
-      });
-    }
 
     await logActivity({
       userId: reviewedBy.id,

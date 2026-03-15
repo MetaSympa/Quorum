@@ -30,7 +30,7 @@ const mockPrisma = {
 };
 
 vi.mock("@/lib/auth", () => ({
-  getAuthSession: (...args: unknown[]) => mockGetAuthSession(...args),
+  getAuthSession: (request: NextRequest | Request) => mockGetAuthSession(request),
 }));
 
 vi.mock("@/lib/prisma", () => ({
@@ -52,13 +52,13 @@ vi.mock("@/lib/services/sponsor-service", async () => {
 
 vi.mock("@/lib/razorpay", () => ({
   createOrder: (...args: unknown[]) => mockCreateOrder(...args),
-  rupeesToPaise: (...args: unknown[]) => mockRupeesToPaise(...args),
+  rupeesToPaise: (amount: number) => mockRupeesToPaise(amount),
   verifyPaymentSignature: (...args: unknown[]) => mockVerifyPaymentSignature(...args),
 }));
 
 vi.mock("@/lib/rate-limit", () => ({
-  rateLimit: (...args: unknown[]) => mockRateLimit(...args),
-  getRateLimitKey: (...args: unknown[]) => mockGetRateLimitKey(...args),
+  rateLimit: mockRateLimit,
+  getRateLimitKey: mockGetRateLimitKey,
   PUBLIC_RATE_LIMIT: { maxAttempts: 30, windowMs: 60_000 },
 }));
 

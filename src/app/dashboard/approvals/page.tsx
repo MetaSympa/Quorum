@@ -338,6 +338,10 @@ function TransactionLiveSection({ tx }: { tx: Record<string, unknown> }) {
   const sponsor = tx.sponsor as { name: string; company: string | null } | null;
   const enteredBy = tx.enteredBy as { name: string } | null;
   const txType = tx.type as string;
+  const sponsorPurpose = typeof tx.sponsorPurpose === "string" ? tx.sponsorPurpose : null;
+  const senderName = typeof tx.senderName === "string" ? tx.senderName : null;
+  const senderPhone = typeof tx.senderPhone === "string" ? tx.senderPhone : null;
+  const receiptNumber = typeof tx.receiptNumber === "string" ? tx.receiptNumber : null;
   const amountNum = parseFloat(String(tx.amount));
   const amountStr = isNaN(amountNum)
     ? String(tx.amount)
@@ -356,10 +360,10 @@ function TransactionLiveSection({ tx }: { tx: Record<string, unknown> }) {
       <DetailRow label="Amount" value={amountStr} className={amountCls} />
       <DetailRow label="Payment Mode" value={ENUM_LABELS.paymentMode?.[tx.paymentMode as string] ?? (tx.paymentMode as string)} />
       <DetailRow label="Description" value={(tx.description as string) || "—"} />
-      {tx.sponsorPurpose && (
+      {sponsorPurpose && (
         <DetailRow
           label="Sponsor Purpose"
-          value={ENUM_LABELS.sponsorPurpose?.[tx.sponsorPurpose as string] ?? (tx.sponsorPurpose as string)}
+          value={ENUM_LABELS.sponsorPurpose?.[sponsorPurpose] ?? sponsorPurpose}
         />
       )}
       {member && <DetailRow label="Member" value={`${member.name} (${member.email})`} />}
@@ -369,9 +373,9 @@ function TransactionLiveSection({ tx }: { tx: Record<string, unknown> }) {
           value={sponsor.company ? `${sponsor.name} — ${sponsor.company}` : sponsor.name}
         />
       )}
-      {tx.senderName && <DetailRow label="Sender Name" value={tx.senderName as string} />}
-      {tx.senderPhone && <DetailRow label="Sender Phone" value={tx.senderPhone as string} />}
-      {tx.receiptNumber && <DetailRow label="Receipt #" value={tx.receiptNumber as string} />}
+      {senderName && <DetailRow label="Sender Name" value={senderName} />}
+      {senderPhone && <DetailRow label="Sender Phone" value={senderPhone} />}
+      {receiptNumber && <DetailRow label="Receipt #" value={receiptNumber} />}
       {enteredBy && <DetailRow label="Entered By" value={enteredBy.name} />}
       <DetailRow
         label="Date"
@@ -391,7 +395,7 @@ function MemberLiveSection({ member }: { member: Record<string, unknown> }) {
         <DetailRow label="Full Name" value={(member.name as string) || "—"} />
         <DetailRow label="Email" value={(member.email as string) || "—"} />
         <DetailRow label="Phone" value={(member.phone as string) || "—"} />
-        {member.address && <DetailRow label="Address" value={member.address as string} />}
+        {typeof member.address === "string" && <DetailRow label="Address" value={member.address} />}
         <DetailRow label="Status" value={(member.membershipStatus as string) || "—"} />
         <DetailRow
           label="Member Since"
@@ -408,11 +412,11 @@ function MemberLiveSection({ member }: { member: Record<string, unknown> }) {
             {subMembers.map((sub, i) => (
               <div key={i} className="rounded-md border px-3 bg-muted/20">
                 <DetailRow label="Name" value={(sub.name as string) || "—"} />
-                {sub.relation && <DetailRow label="Relation" value={sub.relation as string} />}
-                {sub.phone && <DetailRow label="Phone" value={sub.phone as string} />}
-                {sub.email && <DetailRow label="Email" value={sub.email as string} />}
-                {sub.memberId && (
-                  <DetailRow label="Member ID" value={sub.memberId as string} className="font-mono text-xs font-medium" />
+                {typeof sub.relation === "string" && <DetailRow label="Relation" value={sub.relation} />}
+                {typeof sub.phone === "string" && <DetailRow label="Phone" value={sub.phone} />}
+                {typeof sub.email === "string" && <DetailRow label="Email" value={sub.email} />}
+                {typeof sub.memberId === "string" && (
+                  <DetailRow label="Member ID" value={sub.memberId} className="font-mono text-xs font-medium" />
                 )}
               </div>
             ))}
@@ -446,7 +450,7 @@ function MembershipPlanSection({ ms }: { ms: Record<string, unknown> }) {
       <DetailRow label="Fee" value={amountStr} className="font-semibold" />
       <DetailRow label="Start Date" value={fmtDate(ms.startDate)} />
       <DetailRow label="End Date" value={fmtDate(ms.endDate)} />
-      {ms.isApplicationFee && <DetailRow label="Note" value="Includes application fee" />}
+      {ms.isApplicationFee === true && <DetailRow label="Note" value="Includes application fee" />}
     </div>
   );
 }
@@ -501,9 +505,9 @@ function ApprovalDetail({
   const displayData = isDelete ? prev : next;
   const txType = (displayData as Record<string, unknown>).type;
 
-  const allKeys = [
-    ...new Set([...Object.keys(prev), ...Object.keys(next)]),
-  ].filter((k) => !SKIP_KEYS.has(k));
+  const allKeys = Array.from(new Set([...Object.keys(prev), ...Object.keys(next)])).filter(
+    (k) => !SKIP_KEYS.has(k)
+  );
 
   // ---- DELETE: show live entity (what will be removed) ----
   if (isDelete) {
@@ -660,10 +664,10 @@ function ApprovalDetail({
           ) : (
             // fallback: render newData snapshot
             <div className="rounded-md border px-3">
-              {next.type && (
+              {typeof next.type === "string" && (
                 <DetailRow
                   label="Plan"
-                  value={ENUM_LABELS.type?.[next.type as string] ?? String(next.type)}
+                  value={ENUM_LABELS.type?.[next.type] ?? next.type}
                 />
               )}
               {next.amount != null && (
@@ -673,13 +677,13 @@ function ApprovalDetail({
                   className="font-semibold"
                 />
               )}
-              {next.startDate && (
+              {typeof next.startDate === "string" && (
                 <DetailRow label="Start Date" value={formatFieldValue("startDate", next.startDate).text} />
               )}
-              {next.endDate && (
+              {typeof next.endDate === "string" && (
                 <DetailRow label="End Date" value={formatFieldValue("endDate", next.endDate).text} />
               )}
-              {next.isApplicationFee && (
+              {next.isApplicationFee === true && (
                 <DetailRow label="Note" value="Includes application fee" />
               )}
             </div>
@@ -737,8 +741,8 @@ function ApprovalDetail({
           <DetailRow label="Full Name" value={(displayData.name as string) || "—"} />
           <DetailRow label="Email" value={(displayData.email as string) || "—"} />
           <DetailRow label="Phone" value={(displayData.phone as string) || "—"} />
-          {displayData.relation && (
-            <DetailRow label="Relation to Member" value={displayData.relation as string} />
+          {typeof displayData.relation === "string" && (
+            <DetailRow label="Relation to Member" value={displayData.relation} />
           )}
         </div>
       ) : (

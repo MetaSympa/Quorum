@@ -588,10 +588,15 @@ export type SponsorLinkListQuery = z.infer<typeof sponsorLinkListQuerySchema>;
  * Validate GET /api/audit-log query parameters.
  */
 export const auditLogQuerySchema = z.object({
-  entityType: z.string().max(100).optional(),
-  /** Comma-separated list of entity types for multi-value filtering */
-  entityTypes: z.string().max(500).optional(),
-  action: z.string().max(100).optional(),
+  category: z
+    .enum([
+      "MEMBERSHIP_FEE",
+      "APPLICATION_FEE",
+      "SPONSORSHIP",
+      "EXPENSE",
+      "OTHER",
+    ] as const)
+    .optional(),
   /** ISO date string e.g. "2026-01-01" */
   dateFrom: z.string().optional(),
   dateTo: z.string().optional(),

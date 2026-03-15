@@ -13,7 +13,7 @@
  */
 
 import { prisma } from "@/lib/prisma";
-import { logAudit, logActivity } from "@/lib/audit";
+import { logActivity } from "@/lib/audit";
 import { EXPIRY_REMINDER_DAYS } from "@/types";
 
 // ---------------------------------------------------------------------------
@@ -203,19 +203,6 @@ export async function checkMembershipExpiry(): Promise<CronResult> {
           where: { userId: user.id },
           data: { membershipStatus: "EXPIRED" },
         });
-      });
-
-      // Write audit log — status change
-      await logAudit({
-        entityType: "User",
-        entityId: user.id,
-        action: "membership_expired",
-        previousData: { membershipStatus: "ACTIVE" },
-        newData: {
-          membershipStatus: "EXPIRED",
-          membershipExpiry: user.membershipExpiry?.toISOString(),
-        },
-        performedById: systemUser.id,
       });
 
       // Write activity log

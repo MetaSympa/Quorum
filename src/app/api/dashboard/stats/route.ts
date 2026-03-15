@@ -113,13 +113,16 @@ async function getAdminStats() {
 
     // Recent audit (last 10)
     prisma.auditLog.findMany({
+      where: {
+        transaction: {
+          is: { approvalStatus: "APPROVED" },
+        },
+      },
       orderBy: { createdAt: "desc" },
       take: 10,
       select: {
         id: true,
-        entityType: true,
-        entityId: true,
-        action: true,
+        transactionSnapshot: true,
         createdAt: true,
         performedBy: {
           select: { id: true, name: true, role: true, memberId: true },
@@ -157,9 +160,7 @@ async function getAdminStats() {
     })),
     recentAudit: recentAudit.map((a) => ({
       id: a.id,
-      entityType: a.entityType,
-      entityId: a.entityId,
-      action: a.action,
+      transactionSnapshot: a.transactionSnapshot,
       createdAt: a.createdAt,
       performedBy: a.performedBy,
     })),

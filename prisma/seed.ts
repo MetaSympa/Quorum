@@ -13,14 +13,23 @@
  *   - 4 Sponsors
  *   - 3 SponsorLinks
  *   - 10 Approvals (3 pending, 5 approved, 2 rejected)
- *   - 15 AuditLog entries
+ *   - 20 AuditLog entries (approved transactions only)
  *   - 20 ActivityLog entries
  *
  * NOTE: The Prisma $extends middleware encrypts PII fields transparently
  * when ENCRYPTION_KEY is set. The seed works with or without it.
  */
 
-import { PrismaClient, Prisma } from "@prisma/client";
+import {
+  PrismaClient,
+  Prisma,
+  TransactionType,
+  TransactionCategory,
+  PaymentMode,
+  SponsorPurpose,
+  ApprovalStatus,
+  ApprovalSource,
+} from "@prisma/client";
 import bcrypt from "bcryptjs";
 
 const prisma = new PrismaClient();
@@ -41,12 +50,78 @@ function dec(value: string | number): Prisma.Decimal {
   return new Prisma.Decimal(value);
 }
 
+function buildAuditSnapshot(
+  transaction: {
+    id: string;
+    type: TransactionType;
+    category: TransactionCategory;
+    amount: Prisma.Decimal;
+    paymentMode: PaymentMode;
+    description: string;
+    sponsorPurpose: SponsorPurpose | null;
+    approvalStatus: ApprovalStatus;
+    approvalSource: ApprovalSource;
+    enteredById: string;
+    approvedById: string | null;
+    approvedAt: Date | null;
+    razorpayPaymentId: string | null;
+    razorpayOrderId: string | null;
+    senderName: string | null;
+    senderPhone: string | null;
+    senderUpiId: string | null;
+    senderBankAccount: string | null;
+    senderBankName: string | null;
+    receiptNumber: string | null;
+    memberId: string | null;
+    sponsorId: string | null;
+    createdAt: Date;
+  }
+): Prisma.InputJsonValue {
+  return {
+    id: transaction.id,
+    type: transaction.type,
+    category: transaction.category,
+    amount: transaction.amount.toString(),
+    paymentMode: transaction.paymentMode,
+    description: transaction.description,
+    sponsorPurpose: transaction.sponsorPurpose,
+    approvalStatus: transaction.approvalStatus,
+    approvalSource: transaction.approvalSource,
+    enteredById: transaction.enteredById,
+    approvedById: transaction.approvedById,
+    approvedAt: transaction.approvedAt?.toISOString() ?? null,
+    razorpayPaymentId: transaction.razorpayPaymentId,
+    razorpayOrderId: transaction.razorpayOrderId,
+    senderName: transaction.senderName,
+    senderPhone: transaction.senderPhone,
+    senderUpiId: transaction.senderUpiId,
+    senderBankAccount: transaction.senderBankAccount,
+    senderBankName: transaction.senderBankName,
+    receiptNumber: transaction.receiptNumber,
+    memberId: transaction.memberId,
+    sponsorId: transaction.sponsorId,
+    createdAt: transaction.createdAt.toISOString(),
+  };
+}
+
 // ---------------------------------------------------------------------------
 // Main
 // ---------------------------------------------------------------------------
 
 async function main() {
   console.log("Seeding database...");
+
+  // Make the seed rerunnable in a populated local database.
+  await prisma.auditLog.deleteMany();
+  await prisma.activityLog.deleteMany();
+  await prisma.approval.deleteMany();
+  await prisma.membership.deleteMany();
+  await prisma.transaction.deleteMany();
+  await prisma.sponsorLink.deleteMany();
+  await prisma.sponsor.deleteMany();
+  await prisma.subMember.deleteMany();
+  await prisma.member.deleteMany();
+  await prisma.user.deleteMany();
 
   // -----------------------------------------------------------------------
   // 1. Hash passwords
@@ -1308,156 +1383,53 @@ async function main() {
   console.log("Approvals created.");
 
   // -----------------------------------------------------------------------
-  // 10. Audit Log (15 entries)
+  // 10. Audit Log (approved transactions only)
   // -----------------------------------------------------------------------
 
-  const auditEntries: Prisma.AuditLogCreateInput[] = [
-    {
-      entityType:    "User",
-      entityId:      admin.id,
-      action:        "create",
-      previousData:  Prisma.JsonNull,
-      newData:       { name: "Subhash Mukherjee", role: "ADMIN", memberId: "DPC-2026-0001-00" },
-      performedBy:   { connect: { id: admin.id } },
-      createdAt:     d("2026-01-01T08:00:00Z"),
+  const approvedTransactions = await prisma.transaction.findMany({
+    where: { approvalStatus: "APPROVED" },
+    orderBy: [{ approvedAt: "asc" }, { createdAt: "asc" }],
+    select: {
+      id: true,
+      type: true,
+      category: true,
+      amount: true,
+      paymentMode: true,
+      description: true,
+      sponsorPurpose: true,
+      approvalStatus: true,
+      approvalSource: true,
+      enteredById: true,
+      approvedById: true,
+      approvedAt: true,
+      razorpayPaymentId: true,
+      razorpayOrderId: true,
+      senderName: true,
+      senderPhone: true,
+      senderUpiId: true,
+      senderBankAccount: true,
+      senderBankName: true,
+      receiptNumber: true,
+      memberId: true,
+      sponsorId: true,
+      createdAt: true,
     },
-    {
-      entityType:    "User",
-      entityId:      member1.id,
-      action:        "create",
-      previousData:  Prisma.JsonNull,
-      newData:       { name: "Arijit Banerjee", role: "MEMBER", memberId: "DPC-2026-0003-00" },
-      performedBy:   { connect: { id: admin.id } },
-      createdAt:     d("2026-01-15T09:00:00Z"),
+  });
+
+  const auditEntries: Prisma.AuditLogCreateInput[] = approvedTransactions.map((transaction) => ({
+    transaction: { connect: { id: transaction.id } },
+    transactionSnapshot: buildAuditSnapshot(transaction),
+    performedBy: {
+      connect: { id: transaction.approvedById ?? transaction.enteredById },
     },
-    {
-      entityType:    "Transaction",
-      entityId:      txn1.id,
-      action:        "create",
-      previousData:  Prisma.JsonNull,
-      newData:       { type: "CASH_IN", category: "APPLICATION_FEE", amount: "10000", approvalStatus: "APPROVED" },
-      transaction:   { connect: { id: txn1.id } },
-      performedBy:   { connect: { id: admin.id } },
-      createdAt:     d("2026-01-15T10:30:00Z"),
-    },
-    {
-      entityType:    "Transaction",
-      entityId:      txn2.id,
-      action:        "create",
-      previousData:  Prisma.JsonNull,
-      newData:       { type: "CASH_IN", category: "MEMBERSHIP_FEE", amount: "3000", approvalStatus: "APPROVED" },
-      transaction:   { connect: { id: txn2.id } },
-      performedBy:   { connect: { id: admin.id } },
-      createdAt:     d("2026-01-15T10:35:00Z"),
-    },
-    {
-      entityType:    "Sponsor",
-      entityId:      sponsor1.id,
-      action:        "create",
-      previousData:  Prisma.JsonNull,
-      newData:       { name: "Balaram Das & Sons", purpose: "TITLE_SPONSOR" },
-      performedBy:   { connect: { id: admin.id } },
-      createdAt:     d("2026-02-01T08:00:00Z"),
-    },
-    {
-      entityType:    "Transaction",
-      entityId:      txn5.id,
-      action:        "approve",
-      previousData:  { approvalStatus: "PENDING" },
-      newData:       { approvalStatus: "APPROVED", approvedById: admin.id },
-      transaction:   { connect: { id: txn5.id } },
-      performedBy:   { connect: { id: admin.id } },
-      createdAt:     d("2026-02-01T09:00:00Z"),
-    },
-    {
-      entityType:    "User",
-      entityId:      member2.id,
-      action:        "create",
-      previousData:  Prisma.JsonNull,
-      newData:       { name: "Priya Sen", role: "MEMBER", memberId: "DPC-2026-0004-00" },
-      performedBy:   { connect: { id: operator.id } },
-      createdAt:     d("2026-01-20T13:45:00Z"),
-    },
-    {
-      entityType:    "User",
-      entityId:      member1.id,
-      action:        "update",
-      previousData:  { address: "78 Lake Gardens, Kolkata 700045" },
-      newData:       { address: "78A Lake Gardens, Flat 3B, Kolkata 700045" },
-      performedBy:   { connect: { id: admin.id } },
-      createdAt:     d("2026-02-15T11:00:00Z"),
-    },
-    {
-      entityType:    "Membership",
-      entityId:      memberRecord1.id,
-      action:        "approve",
-      previousData:  { status: "PENDING" },
-      newData:       { status: "APPROVED", type: "ANNUAL" },
-      performedBy:   { connect: { id: admin.id } },
-      createdAt:     d("2026-01-15T10:40:00Z"),
-    },
-    {
-      entityType:    "SponsorLink",
-      entityId:      sponsor1.id,
-      action:        "create",
-      previousData:  Prisma.JsonNull,
-      newData:       { token: "sl_balaram_title_2026_abc123def456", amount: "500000", isActive: true },
-      performedBy:   { connect: { id: admin.id } },
-      createdAt:     d("2026-01-25T14:00:00Z"),
-    },
-    {
-      entityType:    "Transaction",
-      entityId:      txn12.id,
-      action:        "approve",
-      previousData:  { approvalStatus: "PENDING" },
-      newData:       { approvalStatus: "APPROVED" },
-      transaction:   { connect: { id: txn12.id } },
-      performedBy:   { connect: { id: admin.id } },
-      createdAt:     d("2026-03-01T10:00:00Z"),
-    },
-    {
-      entityType:    "Approval",
-      entityId:      memberRecord3.id,
-      action:        "reject",
-      previousData:  { status: "PENDING" },
-      newData:       { status: "REJECTED", notes: "Cannot delete — active audit records." },
-      performedBy:   { connect: { id: admin.id } },
-      createdAt:     d("2026-02-20T10:00:00Z"),
-    },
-    {
-      entityType:    "User",
-      entityId:      member5.id,
-      action:        "create",
-      previousData:  Prisma.JsonNull,
-      newData:       { name: "Kaushik Dey", role: "MEMBER", memberId: "DPC-2026-0007-00" },
-      performedBy:   { connect: { id: operator.id } },
-      createdAt:     d("2026-01-10T08:30:00Z"),
-    },
-    {
-      entityType:    "SubMember",
-      entityId:      member1.id,
-      action:        "create",
-      previousData:  Prisma.JsonNull,
-      newData:       { memberId: "DPC-2026-0003-01", relation: "Spouse", name: "Mitali Banerjee" },
-      performedBy:   { connect: { id: admin.id } },
-      createdAt:     d("2026-01-16T10:00:00Z"),
-    },
-    {
-      entityType:    "User",
-      entityId:      member3.id,
-      action:        "membership_expired",
-      previousData:  { membershipStatus: "ACTIVE" },
-      newData:       { membershipStatus: "EXPIRED", expiredAt: "2026-01-01T00:00:00Z" },
-      performedBy:   { connect: { id: admin.id } },
-      createdAt:     d("2026-01-01T00:05:00Z"),
-    },
-  ];
+    createdAt: transaction.approvedAt ?? transaction.createdAt,
+  }));
 
   for (const entry of auditEntries) {
     await prisma.auditLog.create({ data: entry });
   }
 
-  console.log("Audit log entries created.");
+  console.log(`Audit log entries created (${auditEntries.length} approved transactions).`);
 
   // -----------------------------------------------------------------------
   // 11. Activity Log (20 entries)

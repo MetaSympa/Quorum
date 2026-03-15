@@ -16,7 +16,7 @@
 
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { logActivity, logAudit } from "@/lib/audit";
+import { logActivity } from "@/lib/audit";
 import { MEMBERSHIP_FEES, APPLICATION_FEE } from "@/types";
 import type { MembershipType } from "@/types";
 import type { CreateMembershipInput } from "@/lib/validators";
@@ -413,28 +413,7 @@ export async function createMembership(
     return membership;
   });
 
-  // 7. Log to both audit and activity logs
-  await Promise.all([
-    logAudit({
-      entityType: "Membership",
-      entityId: result.id,
-      action: "membership_approved",
-      previousData: null,
-      newData: {
-        membershipId: result.id,
-        memberId: data.memberId,
-        memberName: member.name,
-        type: data.type,
-        amount: data.amount,
-        startDate: startDate.toISOString(),
-        endDate: endDate.toISOString(),
-        isApplicationFee: data.isApplicationFee ?? false,
-        status: "APPROVED",
-        approvedBy: requestedBy.id,
-      },
-      performedById: requestedBy.id,
-    }),
-    logActivity({
+  await logActivity({
       userId: requestedBy.id,
       action: "membership_created",
       description: `Admin ${requestedBy.name} created and approved membership for ${member.name} (${data.type}, ₹${data.amount})`,
@@ -444,8 +423,7 @@ export async function createMembership(
         type: data.type,
         amount: data.amount,
       },
-    }),
-  ]);
+    });
 
   return {
     success: true,
@@ -537,34 +515,12 @@ export async function approveMembership(
     }
   });
 
-  // Log both
-  await Promise.all([
-    logAudit({
-      entityType: "Membership",
-      entityId: membershipId,
-      action: "membership_approved",
-      previousData: { status: "PENDING" },
-      newData: {
-        membershipId,
-        memberId: membership.memberId,
-        memberName: membership.member.name,
-        type: membership.type,
-        amount: membership.amount.toString(),
-        startDate: membership.startDate.toISOString(),
-        endDate: membership.endDate.toISOString(),
-        isApplicationFee: membership.isApplicationFee,
-        status: "APPROVED",
-        approvedBy: approvedBy.id,
-      },
-      performedById: approvedBy.id,
-    }),
-    logActivity({
+  await logActivity({
       userId: approvedBy.id,
       action: "membership_approved",
       description: `Admin ${approvedBy.name} approved membership for ${membership.member.name} (${membership.type}, ₹${membership.amount})`,
       metadata: { membershipId, memberId: membership.memberId },
-    }),
-  ]);
+    });
 
   return { success: true, data: { membershipId }, action: "direct" };
 }
@@ -606,27 +562,12 @@ export async function rejectMembership(
     data: { status: "REJECTED" },
   });
 
-  await Promise.all([
-    logAudit({
-      entityType: "Membership",
-      entityId: membershipId,
-      action: "membership_rejected",
-      previousData: { status: "PENDING" },
-      newData: {
-        membershipId,
-        status: "REJECTED",
-        rejectedBy: rejectedBy.id,
-        notes: notes ?? null,
-      },
-      performedById: rejectedBy.id,
-    }),
-    logActivity({
-      userId: rejectedBy.id,
-      action: "membership_rejected",
-      description: `Admin ${rejectedBy.name} rejected membership for ${membership.member.name} (${membership.type}, ₹${membership.amount})`,
-      metadata: { membershipId, notes: notes ?? null },
-    }),
-  ]);
+  await logActivity({
+    userId: rejectedBy.id,
+    action: "membership_rejected",
+    description: `Admin ${rejectedBy.name} rejected membership for ${membership.member.name} (${membership.type}, ₹${membership.amount})`,
+    metadata: { membershipId, notes: notes ?? null },
+  });
 
   return { success: true, data: { membershipId }, action: "direct" };
 }

@@ -146,7 +146,7 @@ const tempPasswordSession = {
 
 function mockRequest(method: string, path: string, body?: unknown): NextRequest {
   const url = new URL(path, "http://localhost:3000");
-  const init: RequestInit = { method };
+  const init: ConstructorParameters<typeof NextRequest>[1] = { method };
   if (body !== undefined) {
     init.body = JSON.stringify(body);
     init.headers = { "Content-Type": "application/json" };

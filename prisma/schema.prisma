@@ -354,31 +354,24 @@ model Approval {
   @@map("approvals")
 }
 
-/// Financial audit log — append-only. Stores full entity snapshots with linked Transaction data.
+/// Financial audit log — append-only. Stores approved Transaction snapshots only.
+/// Non-financial events and rejected transactions are excluded by schema design.
 /// No UPDATE or DELETE API endpoints are exposed for this table.
 model AuditLog {
-  id            String   @id @default(uuid())
-  entityType    String   @db.VarChar(100)
-  /// UUID of the audited entity
-  entityId      String   @db.Uuid
-  action        String   @db.VarChar(100)
-  /// JSON snapshot before the change
-  previousData  Json?
-  /// JSON snapshot after the change (required)
-  newData       Json
-  /// Linked transaction (full record available via relation)
-  transactionId String?
-  performedById String
-  createdAt     DateTime @default(now()) @db.Timestamptz
+  id                  String   @id @default(uuid())
+  /// Approved transaction being audited
+  transactionId       String   @unique
+  /// Immutable snapshot of the approved transaction at audit time
+  transactionSnapshot Json
+  performedById       String
+  createdAt           DateTime @default(now()) @db.Timestamptz
 
   // Relations
-  transaction Transaction? @relation(fields: [transactionId], references: [id], onDelete: SetNull)
-  performedBy User         @relation("AuditLogPerformedBy", fields: [performedById], references: [id])
+  transaction Transaction @relation(fields: [transactionId], references: [id])
+  performedBy User        @relation("AuditLogPerformedBy", fields: [performedById], references: [id])
 
-  @@index([entityType, entityId])
   @@index([performedById])
   @@index([createdAt])
-  @@index([transactionId])
   @@map("audit_logs")
 }
 

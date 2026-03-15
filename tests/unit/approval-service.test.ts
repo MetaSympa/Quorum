@@ -163,6 +163,7 @@ vi.mock("@/lib/prisma", () => ({
 }));
 
 vi.mock("@/lib/audit", () => ({
+  buildTransactionAuditSnapshot: vi.fn((transaction) => transaction),
   logAudit: vi.fn().mockResolvedValue(undefined),
   logActivity: vi.fn().mockResolvedValue(undefined),
 }));
@@ -200,7 +201,7 @@ const mockApproval = {
 };
 
 beforeEach(() => {
-  vi.clearAllMocks();
+  vi.resetAllMocks();
 });
 
 describe("listApprovals", () => {
@@ -359,12 +360,42 @@ describe("approveEntry", () => {
         approval: { update: vi.fn().mockResolvedValue({}) },
       } as never);
     });
+    vi.mocked(prisma.transaction.findUnique).mockResolvedValue({
+      id: "tx-id-1",
+      type: "CASH_OUT",
+      category: "EXPENSE",
+      amount: { toString: () => "45000" },
+      paymentMode: "BANK_TRANSFER",
+      description: "Pandal decoration materials — Om Decorators",
+      sponsorPurpose: null,
+      approvalStatus: "APPROVED",
+      approvalSource: "MANUAL",
+      enteredById: "operator-1",
+      approvedById: "admin-1",
+      approvedAt: new Date(),
+      razorpayPaymentId: null,
+      razorpayOrderId: null,
+      senderName: "Om Decorators",
+      senderPhone: null,
+      senderUpiId: null,
+      senderBankAccount: "XXXX9012",
+      senderBankName: "Canara Bank",
+      receiptNumber: "DPS-REC-2026-0012",
+      memberId: null,
+      sponsorId: null,
+      createdAt: new Date(),
+    } as never);
 
     const result = await approveEntry("approval-1", { id: "admin-1", name: "Admin" });
 
     expect(result.success).toBe(true);
     expect(vi.mocked(prisma.$transaction)).toHaveBeenCalledOnce();
     expect(vi.mocked(logAudit)).toHaveBeenCalledOnce();
+    expect(vi.mocked(logAudit)).toHaveBeenCalledWith(
+      expect.objectContaining({
+        transactionId: "tx-id-1",
+      })
+    );
   });
 
   it("executes $transaction for MEMBERSHIP approval", async () => {
@@ -404,7 +435,7 @@ describe("approveEntry", () => {
     const result = await approveEntry("approval-1", { id: "admin-1", name: "Admin" });
 
     expect(result.success).toBe(true);
-    expect(vi.mocked(logAudit)).toHaveBeenCalledOnce();
+    expect(vi.mocked(logAudit)).not.toHaveBeenCalled();
   });
 });
 
@@ -485,7 +516,8 @@ describe("rejectEntry", () => {
         data: { approvalStatus: "REJECTED" },
       })
     );
-    expect(vi.mocked(logAudit)).toHaveBeenCalledOnce();
+    expect(vi.mocked(logAudit)).not.toHaveBeenCalled();
+    expect(vi.mocked(logActivity)).toHaveBeenCalledOnce();
   });
 
   it("rejects MEMBERSHIP and sets Membership.status = REJECTED", async () => {
@@ -518,6 +550,7 @@ describe("rejectEntry", () => {
         data: { status: "REJECTED" },
       })
     );
-    expect(vi.mocked(logAudit)).toHaveBeenCalledOnce();
+    expect(vi.mocked(logAudit)).not.toHaveBeenCalled();
+    expect(vi.mocked(logActivity)).toHaveBeenCalledOnce();
   });
 });
