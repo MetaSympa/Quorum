@@ -27,12 +27,14 @@ import {
   UsersIcon,
   IndianRupeeIcon,
   TrendingUpIcon,
+  TrendingDownIcon,
   ClockIcon,
   CheckCircleIcon,
   RefreshCwIcon,
   UserPlusIcon,
   ReceiptIcon,
   LinkIcon,
+  BuildingIcon,
   AlertCircleIcon,
   CalendarIcon,
   WalletIcon,
@@ -147,7 +149,7 @@ function AdminDashboard({ stats }: { stats: AdminStats }) {
   return (
     <div className="space-y-6">
       {/* Summary cards */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
         {/* Total Members */}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
@@ -186,6 +188,24 @@ function AdminDashboard({ stats }: { stats: AdminStats }) {
             </div>
             <div className="mt-1 text-xs text-muted-foreground">
               Approved cash in
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Net Expenses */}
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              Net Expenses
+            </CardTitle>
+            <TrendingDownIcon className="h-4 w-4 text-red-600 dark:text-red-400" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-red-600 dark:text-red-400">
+              {formatCurrency(stats.financial.totalExpenses)}
+            </div>
+            <div className="mt-1 text-xs text-muted-foreground">
+              Approved cash out
             </div>
           </CardContent>
         </Card>
@@ -291,6 +311,12 @@ function AdminDashboard({ stats }: { stats: AdminStats }) {
               <Link href="/dashboard/cash">
                 <ReceiptIcon className="mr-2 h-4 w-4" />
                 Record Payment
+              </Link>
+            </Button>
+            <Button asChild size="sm" variant="outline">
+              <Link href="/dashboard/sponsorship">
+                <BuildingIcon className="mr-2 h-4 w-4" />
+                Add Sponsor
               </Link>
             </Button>
             <Button asChild size="sm" variant="outline">

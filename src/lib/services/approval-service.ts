@@ -107,9 +107,7 @@ export async function listApprovals(
     where.entityType = entityType as Prisma.EnumApprovalEntityTypeFilter;
   }
 
-  if (status) {
-    where.status = status as Prisma.EnumApprovalStatusFilter;
-  }
+  where.status = (status ?? "PENDING") as Prisma.EnumApprovalStatusFilter;
 
   if (dateFrom || dateTo) {
     where.createdAt = {};

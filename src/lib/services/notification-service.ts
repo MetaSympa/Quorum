@@ -154,18 +154,18 @@ export async function notifyNewApprovalRequest(
 
   try {
     const recipients = await getAdminsAndOperators();
-    if (recipients.length === 0) return result;
+    if (recipients.length > 0) {
+      const entityType = approval.entityType.replace(/_/g, " ");
+      const requesterName = approval.requestedBy?.name ?? "Unknown";
 
-    const entityType = approval.entityType.replace(/_/g, " ");
-    const requesterName = approval.requestedBy?.name ?? "Unknown";
-
-    const r = await sendToRecipients(
-      recipients,
-      TEMPLATES.NEW_APPROVAL.name,
-      [entityType, requesterName]
-    );
-    result.sent += r.sent;
-    result.failed += r.failed;
+      const r = await sendToRecipients(
+        recipients,
+        TEMPLATES.NEW_APPROVAL.name,
+        [entityType, requesterName]
+      );
+      result.sent += r.sent;
+      result.failed += r.failed;
+    }
   } catch (err) {
     console.error("[notifications] notifyNewApprovalRequest error:", err);
   }
@@ -193,19 +193,19 @@ export async function notifyPaymentReceived(
 
   try {
     const recipients = await getAdminsAndOperators();
-    if (recipients.length === 0) return result;
+    if (recipients.length > 0) {
+      const amount = `Rs. ${Number(transaction.amount).toFixed(2)}`;
+      const memberName = transaction.member?.name ?? transaction.senderName ?? "Unknown";
+      const paymentMode = transaction.paymentMode;
 
-    const amount = `Rs. ${Number(transaction.amount).toFixed(2)}`;
-    const memberName = transaction.member?.name ?? transaction.senderName ?? "Unknown";
-    const paymentMode = transaction.paymentMode;
-
-    const r = await sendToRecipients(
-      recipients,
-      TEMPLATES.PAYMENT_RECEIVED.name,
-      [amount, memberName, paymentMode]
-    );
-    result.sent += r.sent;
-    result.failed += r.failed;
+      const r = await sendToRecipients(
+        recipients,
+        TEMPLATES.PAYMENT_RECEIVED.name,
+        [amount, memberName, paymentMode]
+      );
+      result.sent += r.sent;
+      result.failed += r.failed;
+    }
   } catch (err) {
     console.error("[notifications] notifyPaymentReceived error:", err);
   }
@@ -233,15 +233,15 @@ export async function notifyNewMemberRegistration(
 
   try {
     const recipients = await getAdminsAndOperators();
-    if (recipients.length === 0) return result;
-
-    const r = await sendToRecipients(
-      recipients,
-      TEMPLATES.NEW_MEMBER.name,
-      [member.name, member.memberId]
-    );
-    result.sent += r.sent;
-    result.failed += r.failed;
+    if (recipients.length > 0) {
+      const r = await sendToRecipients(
+        recipients,
+        TEMPLATES.NEW_MEMBER.name,
+        [member.name, member.memberId]
+      );
+      result.sent += r.sent;
+      result.failed += r.failed;
+    }
   } catch (err) {
     console.error("[notifications] notifyNewMemberRegistration error:", err);
   }
@@ -448,20 +448,20 @@ export async function notifySponsorPayment(
 
   try {
     const recipients = await getAdminsAndOperators();
-    if (recipients.length === 0) return result;
+    if (recipients.length > 0) {
+      const amount = `Rs. ${Number(transaction.amount).toFixed(2)}`;
+      const purpose = transaction.sponsorPurpose
+        ? transaction.sponsorPurpose.replace(/_/g, " ")
+        : "Sponsorship";
 
-    const amount = `Rs. ${Number(transaction.amount).toFixed(2)}`;
-    const purpose = transaction.sponsorPurpose
-      ? transaction.sponsorPurpose.replace(/_/g, " ")
-      : "Sponsorship";
-
-    const r = await sendToRecipients(
-      recipients,
-      TEMPLATES.SPONSOR_PAYMENT.name,
-      [sponsor.name, amount, purpose]
-    );
-    result.sent += r.sent;
-    result.failed += r.failed;
+      const r = await sendToRecipients(
+        recipients,
+        TEMPLATES.SPONSOR_PAYMENT.name,
+        [sponsor.name, amount, purpose]
+      );
+      result.sent += r.sent;
+      result.failed += r.failed;
+    }
   } catch (err) {
     console.error("[notifications] notifySponsorPayment error:", err);
   }
