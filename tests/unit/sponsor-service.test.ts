@@ -564,8 +564,8 @@ describe("createSponsor", () => {
     expect(result.success).toBe(true);
     expect(result.status).toBe(201);
     expect(result.data?.sponsorId).toBe("new-sponsor");
-    expect(logAudit).toHaveBeenCalledOnce();
     expect(logActivity).toHaveBeenCalledOnce();
+    expect(logAudit).not.toHaveBeenCalled();
   });
 
   it("passes company to prisma create when provided", async () => {
@@ -614,8 +614,8 @@ describe("updateSponsor", () => {
 
     expect(result.success).toBe(true);
     expect(result.data?.sponsorId).toBe("s1");
-    expect(logAudit).toHaveBeenCalledOnce();
     expect(logActivity).toHaveBeenCalledOnce();
+    expect(logAudit).not.toHaveBeenCalled();
   });
 
   it("returns 404 when sponsor not found", async () => {
@@ -732,8 +732,8 @@ describe("generateSponsorLink", () => {
     expect(result.status).toBe(201);
     expect(result.data?.linkId).toBe("link-1");
     expect(result.data?.url).toContain("/sponsor/");
-    expect(logAudit).toHaveBeenCalledOnce();
     expect(logActivity).toHaveBeenCalledOnce();
+    expect(logAudit).not.toHaveBeenCalled();
   });
 
   it("creates link without sponsorId (generic link)", async () => {

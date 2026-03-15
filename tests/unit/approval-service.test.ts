@@ -174,6 +174,7 @@ vi.mock("@/lib/member-id", () => ({
 }));
 
 import { prisma } from "@/lib/prisma";
+import { logAudit, logActivity } from "@/lib/audit";
 import {
   listApprovals,
   getApproval,
@@ -332,6 +333,8 @@ describe("approveEntry", () => {
 
     expect(result.success).toBe(true);
     expect(vi.mocked(prisma.$transaction)).toHaveBeenCalledOnce();
+    expect(vi.mocked(logAudit)).not.toHaveBeenCalled();
+    expect(vi.mocked(logActivity)).toHaveBeenCalledOnce();
   });
 
   it("executes $transaction for TRANSACTION approval", async () => {
@@ -361,6 +364,7 @@ describe("approveEntry", () => {
 
     expect(result.success).toBe(true);
     expect(vi.mocked(prisma.$transaction)).toHaveBeenCalledOnce();
+    expect(vi.mocked(logAudit)).toHaveBeenCalledOnce();
   });
 
   it("executes $transaction for MEMBERSHIP approval", async () => {
@@ -400,6 +404,7 @@ describe("approveEntry", () => {
     const result = await approveEntry("approval-1", { id: "admin-1", name: "Admin" });
 
     expect(result.success).toBe(true);
+    expect(vi.mocked(logAudit)).toHaveBeenCalledOnce();
   });
 });
 
@@ -446,6 +451,8 @@ describe("rejectEntry", () => {
         data: expect.objectContaining({ status: "REJECTED", notes: "Not valid" }),
       })
     );
+    expect(vi.mocked(logAudit)).not.toHaveBeenCalled();
+    expect(vi.mocked(logActivity)).toHaveBeenCalledOnce();
   });
 
   it("rejects TRANSACTION and sets Transaction.approvalStatus = REJECTED", async () => {
@@ -478,6 +485,7 @@ describe("rejectEntry", () => {
         data: { approvalStatus: "REJECTED" },
       })
     );
+    expect(vi.mocked(logAudit)).toHaveBeenCalledOnce();
   });
 
   it("rejects MEMBERSHIP and sets Membership.status = REJECTED", async () => {
@@ -510,5 +518,6 @@ describe("rejectEntry", () => {
         data: { status: "REJECTED" },
       })
     );
+    expect(vi.mocked(logAudit)).toHaveBeenCalledOnce();
   });
 });

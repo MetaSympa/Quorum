@@ -18,7 +18,7 @@
 
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { logAudit, logActivity } from "@/lib/audit";
+import { logActivity } from "@/lib/audit";
 import type {
   CreateSponsorInput,
   UpdateSponsorInput,
@@ -302,7 +302,7 @@ export async function getSponsor(
 
 /**
  * Create a new sponsor record.
- * Logged to ActivityLog.
+ * Logged to ActivityLog only; AuditLog is reserved for financial data.
  */
 export async function createSponsor(
   data: CreateSponsorInput,
@@ -318,28 +318,12 @@ export async function createSponsor(
     },
   });
 
-  await Promise.all([
-    logAudit({
-      entityType: "Sponsor",
-      entityId: sponsor.id,
-      action: "sponsor_created",
-      previousData: null,
-      newData: {
-        id: sponsor.id,
-        name: sponsor.name,
-        email: sponsor.email,
-        company: sponsor.company,
-        createdById: sponsor.createdById,
-      },
-      performedById: createdBy.id,
-    }),
-    logActivity({
-      userId: createdBy.id,
-      action: "sponsor_created",
-      description: `${createdBy.name} created sponsor: ${sponsor.name}${sponsor.company ? ` (${sponsor.company})` : ""}`,
-      metadata: { sponsorId: sponsor.id, name: sponsor.name },
-    }),
-  ]);
+  await logActivity({
+    userId: createdBy.id,
+    action: "sponsor_created",
+    description: `${createdBy.name} created sponsor: ${sponsor.name}${sponsor.company ? ` (${sponsor.company})` : ""}`,
+    metadata: { sponsorId: sponsor.id, name: sponsor.name },
+  });
 
   return { success: true, data: { sponsorId: sponsor.id }, status: 201 };
 }
@@ -349,7 +333,8 @@ export async function createSponsor(
 // ---------------------------------------------------------------------------
 
 /**
- * Update sponsor fields. Logs to audit + activity.
+ * Update sponsor fields. Logs to ActivityLog only; AuditLog is reserved for
+ * financial data.
  */
 export async function updateSponsor(
   id: string,
@@ -365,13 +350,6 @@ export async function updateSponsor(
     return { success: false, error: "No fields provided for update", status: 400 };
   }
 
-  const previousSnapshot = {
-    name: existing.name,
-    phone: existing.phone,
-    email: existing.email,
-    company: existing.company,
-  };
-
   const updated = await prisma.sponsor.update({
     where: { id },
     data: {
@@ -382,27 +360,12 @@ export async function updateSponsor(
     },
   });
 
-  await Promise.all([
-    logAudit({
-      entityType: "Sponsor",
-      entityId: id,
-      action: "sponsor_updated",
-      previousData: previousSnapshot,
-      newData: {
-        name: updated.name,
-        phone: updated.phone,
-        email: updated.email,
-        company: updated.company,
-      },
-      performedById: updatedBy.id,
-    }),
-    logActivity({
-      userId: updatedBy.id,
-      action: "sponsor_updated",
-      description: `${updatedBy.name} updated sponsor: ${updated.name}`,
-      metadata: { sponsorId: id, changes: data },
-    }),
-  ]);
+  await logActivity({
+    userId: updatedBy.id,
+    action: "sponsor_updated",
+    description: `${updatedBy.name} updated sponsor: ${updated.name}`,
+    metadata: { sponsorId: id, changes: data },
+  });
 
   return { success: true, data: { sponsorId: id } };
 }
@@ -455,22 +418,12 @@ export async function deleteSponsor(
 
   await prisma.sponsor.delete({ where: { id } });
 
-  await Promise.all([
-    logAudit({
-      entityType: "Sponsor",
-      entityId: id,
-      action: "sponsor_deleted",
-      previousData: { id: sponsor.id, name: sponsor.name, email: sponsor.email },
-      newData: { deleted: true, deletedBy: deletedBy.id },
-      performedById: deletedBy.id,
-    }),
-    logActivity({
-      userId: deletedBy.id,
-      action: "sponsor_deleted",
-      description: `${deletedBy.name} deleted sponsor: ${sponsor.name}`,
-      metadata: { sponsorId: id, name: sponsor.name },
-    }),
-  ]);
+  await logActivity({
+    userId: deletedBy.id,
+    action: "sponsor_deleted",
+    description: `${deletedBy.name} deleted sponsor: ${sponsor.name}`,
+    metadata: { sponsorId: id, name: sponsor.name },
+  });
 
   return { success: true, data: { sponsorId: id } };
 }
@@ -531,39 +484,19 @@ export async function generateSponsorLink(
 
   const url = `${APP_URL}/sponsor/${token}`;
 
-  await Promise.all([
-    logAudit({
-      entityType: "SponsorLink",
-      entityId: link.id,
-      action: "sponsor_link_created",
-      previousData: null,
-      newData: {
-        id: link.id,
-        token: link.token,
-        sponsorId: link.sponsorId,
-        amount: link.amount?.toString() ?? null,
-        upiId: link.upiId,
-        sponsorPurpose: data.sponsorPurpose,
-        isActive: true,
-        expiresAt: link.expiresAt?.toISOString() ?? null,
-        url,
-      },
-      performedById: createdBy.id,
-    }),
-    logActivity({
-      userId: createdBy.id,
-      action: "sponsor_link_created",
-      description: `${createdBy.name} generated sponsor payment link for ${sponsorPurposeLabel(data.sponsorPurpose)}${data.amount ? ` — ₹${data.amount}` : " (open-ended)"}`,
-      metadata: {
-        linkId: link.id,
-        token,
-        sponsorId: data.sponsorId ?? null,
-        purpose: data.sponsorPurpose,
-        amount: data.amount ?? null,
-        url,
-      },
-    }),
-  ]);
+  await logActivity({
+    userId: createdBy.id,
+    action: "sponsor_link_created",
+    description: `${createdBy.name} generated sponsor payment link for ${sponsorPurposeLabel(data.sponsorPurpose)}${data.amount ? ` — ₹${data.amount}` : " (open-ended)"}`,
+    metadata: {
+      linkId: link.id,
+      token,
+      sponsorId: data.sponsorId ?? null,
+      purpose: data.sponsorPurpose,
+      amount: data.amount ?? null,
+      url,
+    },
+  });
 
   return {
     success: true,

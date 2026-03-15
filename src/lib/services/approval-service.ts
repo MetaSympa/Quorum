@@ -4,8 +4,10 @@
  * Responsibilities:
  *   - List pending approvals (admin only, with filters + pagination)
  *   - Get a single approval with full details
- *   - approveEntry: apply proposed change to DB atomically, log to audit + activity
- *   - rejectEntry: discard change, update approval record, log to audit + activity
+ *   - approveEntry: apply proposed change to DB atomically, log to activity
+ *                   and to audit only for financial entity types
+ *   - rejectEntry: discard change, update approval record, log to activity
+ *                  and to audit only for financial entity types
  *
  * Entity-type dispatch on approval:
  *   MEMBER_ADD     → create User + Member from newData (generates memberId, temp password)
@@ -66,6 +68,10 @@ export interface ServiceResult<T> {
   data?: T;
   error?: string;
   status?: number;
+}
+
+function isFinancialApprovalEntity(entityType: string): boolean {
+  return entityType === "TRANSACTION" || entityType === "MEMBERSHIP";
 }
 
 // ---------------------------------------------------------------------------
@@ -282,20 +288,21 @@ export async function approveEntry(
       });
     });
 
-    // Log to audit + activity (outside transaction — never-throw helpers)
-    await logAudit({
-      entityType: "APPROVAL",
-      entityId: id,
-      action: "approval_approved",
-      previousData: { status: "PENDING" },
-      newData: {
-        status: "APPROVED",
-        entityType: approval.entityType,
-        entityId: logEntityId,
-        ...logNewData,
-      },
-      performedById: reviewedBy.id,
-    });
+    if (isFinancialApprovalEntity(approval.entityType)) {
+      await logAudit({
+        entityType: "APPROVAL",
+        entityId: id,
+        action: "approval_approved",
+        previousData: { status: "PENDING" },
+        newData: {
+          status: "APPROVED",
+          entityType: approval.entityType,
+          entityId: logEntityId,
+          ...logNewData,
+        },
+        performedById: reviewedBy.id,
+      });
+    }
 
     await logActivity({
       userId: reviewedBy.id,
@@ -392,18 +399,20 @@ export async function rejectEntry(
       });
     });
 
-    await logAudit({
-      entityType: "APPROVAL",
-      entityId: id,
-      action: "approval_rejected",
-      previousData: { status: "PENDING" },
-      newData: {
-        status: "REJECTED",
-        entityType: approval.entityType,
-        entityId: approval.entityId,
-      },
-      performedById: reviewedBy.id,
-    });
+    if (isFinancialApprovalEntity(approval.entityType)) {
+      await logAudit({
+        entityType: "APPROVAL",
+        entityId: id,
+        action: "approval_rejected",
+        previousData: { status: "PENDING" },
+        newData: {
+          status: "REJECTED",
+          entityType: approval.entityType,
+          entityId: approval.entityId,
+        },
+        performedById: reviewedBy.id,
+      });
+    }
 
     await logActivity({
       userId: reviewedBy.id,
