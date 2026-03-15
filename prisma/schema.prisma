@@ -1,0 +1,402 @@
+// DPS Dashboard — Prisma Schema
+// All 10 enums and 10 models from project plan §4
+// Generated: 2026-03-15
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================
+// ENUMS
+// ============================================================
+
+enum Role {
+  ADMIN
+  OPERATOR
+  MEMBER
+}
+
+enum MembershipStatus {
+  PENDING_APPROVAL
+  PENDING_PAYMENT
+  ACTIVE
+  EXPIRED
+  SUSPENDED
+}
+
+enum MembershipType {
+  MONTHLY
+  HALF_YEARLY
+  ANNUAL
+}
+
+enum TransactionType {
+  CASH_IN
+  CASH_OUT
+}
+
+enum TransactionCategory {
+  MEMBERSHIP_FEE
+  APPLICATION_FEE
+  SPONSORSHIP
+  EXPENSE
+  OTHER
+}
+
+enum PaymentMode {
+  UPI
+  BANK_TRANSFER
+  CASH
+}
+
+enum SponsorPurpose {
+  TITLE_SPONSOR
+  GOLD_SPONSOR
+  SILVER_SPONSOR
+  FOOD_PARTNER
+  MEDIA_PARTNER
+  STALL_VENDOR
+  MARKETING_PARTNER
+}
+
+enum ApprovalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum ApprovalEntityType {
+  TRANSACTION
+  MEMBER_ADD
+  MEMBER_EDIT
+  MEMBER_DELETE
+  MEMBERSHIP
+}
+
+enum ApprovalSource {
+  MANUAL
+  RAZORPAY_WEBHOOK
+}
+
+// ============================================================
+// MODELS
+// ============================================================
+
+/// Primary members, admins, and operators — all login accounts.
+model User {
+  id                 String           @id @default(uuid())
+  /// Format: DPC-YYYY-NNNN-00 (primary member). Unique across system.
+  memberId           String           @unique @db.VarChar(20)
+  name               String           @db.VarChar(255)
+  email              String           @unique @db.VarChar(255)
+  /// Encrypted at rest (AES-256 via Prisma middleware)
+  phone              String           @db.Text
+  /// Encrypted at rest (AES-256 via Prisma middleware)
+  address            String           @db.Text
+  /// bcrypt hash (12+ rounds)
+  password           String           @db.VarChar(255)
+  /// If true, user must change password before any dashboard operation
+  isTempPassword     Boolean          @default(true)
+  role               Role             @default(MEMBER)
+  membershipStatus   MembershipStatus @default(PENDING_APPROVAL)
+  /// Set after first payment
+  membershipType     MembershipType?
+  /// Nullable — set after first payment
+  membershipStart    DateTime?        @db.Date
+  /// Nullable — set after first payment
+  membershipExpiry   DateTime?        @db.Date
+  /// Running total of all approved payments
+  totalPaid          Decimal          @default(0) @db.Decimal(12, 2)
+  applicationFeePaid Boolean          @default(false)
+  createdAt          DateTime         @default(now()) @db.Timestamptz
+  updatedAt          DateTime         @updatedAt @db.Timestamptz
+
+  // Relations
+  subMembers           SubMember[]
+  /// Transactions entered by this user (including SYSTEM user for auto-detect)
+  transactions         Transaction[] @relation("TransactionEnteredBy")
+  /// Transactions approved by this user
+  approvedTransactions Transaction[] @relation("TransactionApprovedBy")
+  /// Approvals requested by this user
+  approvals            Approval[]    @relation("ApprovalRequestedBy")
+  /// Approvals reviewed by this user
+  reviewedApprovals    Approval[]    @relation("ApprovalReviewedBy")
+  auditLogs            AuditLog[]    @relation("AuditLogPerformedBy")
+  activityLogs         ActivityLog[]
+  /// Member record linked to this user (if has login)
+  member               Member?
+  sponsors             Sponsor[]
+  sponsorLinks         SponsorLink[]
+
+  @@index([role])
+  @@index([membershipStatus])
+  @@index([membershipExpiry])
+  @@map("users")
+}
+
+/// Sub-members linked to a primary User. Up to 3 per parent (enforced in business logic).
+model SubMember {
+  id             String   @id @default(uuid())
+  /// Format: DPC-YYYY-NNNN-SS where SS = 01-03. Unique across system.
+  memberId       String   @unique @db.VarChar(20)
+  parentUserId   String
+  name           String   @db.VarChar(255)
+  /// Used for login — unique
+  email          String   @unique @db.VarChar(255)
+  /// WhatsApp number — encrypted at rest (AES-256)
+  phone          String   @db.Text
+  /// bcrypt hash
+  password       String   @db.VarChar(255)
+  /// If true, must change password before dashboard access
+  isTempPassword Boolean  @default(true)
+  /// e.g. "Spouse", "Child", "Parent"
+  relation       String   @db.VarChar(100)
+  /// Sub-members can login to their own dashboard
+  canLogin       Boolean  @default(true)
+  createdAt      DateTime @default(now()) @db.Timestamptz
+
+  // Relations
+  parentUser User @relation(fields: [parentUserId], references: [id], onDelete: Cascade)
+
+  @@index([parentUserId])
+  @@map("sub_members")
+}
+
+/// Canonical member record. Linked to User when the member has login credentials.
+model Member {
+  id               String           @id @default(uuid())
+  /// Nullable — linked if member has a login account
+  userId           String?          @unique
+  name             String           @db.VarChar(255)
+  /// Encrypted at rest (AES-256)
+  phone            String           @db.Text
+  email            String           @db.VarChar(255)
+  /// Encrypted at rest (AES-256)
+  address          String           @db.Text
+  /// Nullable — for sub-members linked to a parent member record
+  parentMemberId   String?
+  membershipStatus MembershipStatus @default(PENDING_APPROVAL)
+  joinedAt         DateTime         @default(now()) @db.Timestamptz
+  createdAt        DateTime         @default(now()) @db.Timestamptz
+  updatedAt        DateTime         @updatedAt @db.Timestamptz
+
+  // Relations
+  user         User?         @relation(fields: [userId], references: [id], onDelete: SetNull)
+  parentMember Member?       @relation("MemberSubMembers", fields: [parentMemberId], references: [id], onDelete: SetNull)
+  childMembers Member[]      @relation("MemberSubMembers")
+  memberships  Membership[]
+  transactions Transaction[]
+
+  @@index([userId])
+  @@index([parentMemberId])
+  @@index([membershipStatus])
+  @@map("members")
+}
+
+/// Membership payment period — tracks a member's paid subscription interval.
+/// status here is ApprovalStatus of the payment, NOT the member lifecycle status.
+model Membership {
+  id               String         @id @default(uuid())
+  memberId         String
+  type             MembershipType
+  amount           Decimal        @db.Decimal(12, 2)
+  startDate        DateTime       @db.Date
+  endDate          DateTime       @db.Date
+  /// True for the one-time application fee (₹10,000)
+  isApplicationFee Boolean        @default(false)
+  /// Approval status of this payment period — PENDING/APPROVED/REJECTED
+  status           ApprovalStatus @default(PENDING)
+  createdAt        DateTime       @default(now()) @db.Timestamptz
+
+  // Relations
+  member Member @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@index([memberId])
+  @@index([status])
+  @@index([endDate])
+  @@map("memberships")
+}
+
+/// Cash in/out transaction. Auto-created from Razorpay webhook or manually entered by operator.
+model Transaction {
+  id                String              @id @default(uuid())
+  type              TransactionType
+  category          TransactionCategory
+  amount            Decimal             @db.Decimal(12, 2)
+  paymentMode       PaymentMode
+  description       String              @db.Text
+  /// Required when category = SPONSORSHIP
+  sponsorPurpose    SponsorPurpose?
+  /// Nullable — linked member (for membership fee payments)
+  memberId          String?
+  /// Nullable — linked sponsor (for sponsorship payments)
+  sponsorId         String?
+  /// User who entered this transaction. SYSTEM user for auto-detected Razorpay payments.
+  enteredById       String
+  approvalStatus    ApprovalStatus      @default(PENDING)
+  approvalSource    ApprovalSource      @default(MANUAL)
+  /// Nullable — null for auto-approved transactions
+  approvedById      String?
+  approvedAt        DateTime?           @db.Timestamptz
+  /// Razorpay payment ID for auto-detected payments
+  razorpayPaymentId String?             @db.VarChar(255)
+  razorpayOrderId   String?             @db.VarChar(255)
+  /// Payer name from Razorpay or manually entered
+  senderName        String?             @db.VarChar(255)
+  /// Payer phone/WhatsApp — encrypted at rest
+  senderPhone       String?             @db.Text
+  /// UPI VPA from Razorpay for UPI payments
+  senderUpiId       String?             @db.VarChar(255)
+  /// Masked account number from Razorpay for bank transfers — encrypted at rest
+  senderBankAccount String?             @db.Text
+  senderBankName    String?             @db.VarChar(255)
+  receiptNumber     String?             @db.VarChar(50)
+  createdAt         DateTime            @default(now()) @db.Timestamptz
+
+  // Relations
+  member     Member?    @relation(fields: [memberId], references: [id], onDelete: SetNull)
+  sponsor    Sponsor?   @relation(fields: [sponsorId], references: [id], onDelete: SetNull)
+  enteredBy  User       @relation("TransactionEnteredBy", fields: [enteredById], references: [id])
+  approvedBy User?      @relation("TransactionApprovedBy", fields: [approvedById], references: [id])
+  auditLogs  AuditLog[]
+
+  @@index([type])
+  @@index([category])
+  @@index([memberId])
+  @@index([sponsorId])
+  @@index([approvalStatus])
+  @@index([createdAt])
+  @@index([razorpayPaymentId])
+  @@index([razorpayOrderId])
+  @@map("transactions")
+}
+
+/// Sponsor record — individual or company sponsoring the club.
+model Sponsor {
+  id          String   @id @default(uuid())
+  name        String   @db.VarChar(255)
+  /// Encrypted at rest (AES-256)
+  phone       String   @db.Text
+  email       String   @db.VarChar(255)
+  company     String?  @db.VarChar(255)
+  createdById String
+  createdAt   DateTime @default(now()) @db.Timestamptz
+
+  // Relations
+  createdBy    User          @relation(fields: [createdById], references: [id])
+  transactions Transaction[]
+  sponsorLinks SponsorLink[]
+
+  @@index([createdById])
+  @@map("sponsors")
+}
+
+/// Public sponsor payment link. Shareable token with UPI + bank transfer details.
+model SponsorLink {
+  id          String    @id @default(uuid())
+  /// Nullable — can be generic (not linked to a specific sponsor)
+  sponsorId   String?
+  /// Cryptographically random, unique token for public URL
+  token       String    @unique @db.VarChar(255)
+  /// Nullable — open-ended if null (sponsor chooses amount)
+  amount      Decimal?  @db.Decimal(12, 2)
+  upiId       String    @db.VarChar(255)
+  /// Nullable JSON: { accountNumber, bankName, ifscCode }
+  bankDetails Json?
+  isActive    Boolean   @default(true)
+  createdById String
+  createdAt   DateTime  @default(now()) @db.Timestamptz
+  expiresAt   DateTime? @db.Timestamptz
+
+  // Relations
+  sponsor   Sponsor? @relation(fields: [sponsorId], references: [id], onDelete: SetNull)
+  createdBy User     @relation(fields: [createdById], references: [id])
+
+  @@index([token])
+  @@index([sponsorId])
+  @@index([isActive])
+  @@map("sponsor_links")
+}
+
+/// Approval queue record. Stores complete before/after snapshots for operator-submitted changes.
+/// On approve: service applies newData to target entity. On reject: no changes applied.
+model Approval {
+  id            String             @id @default(uuid())
+  entityType    ApprovalEntityType
+  /// UUID of the target entity (member, transaction, membership)
+  entityId      String             @db.Uuid
+  /// Human-readable action description (e.g. "add_member", "edit_transaction")
+  action        String             @db.VarChar(100)
+  /// JSON snapshot of entity before change (for edits/deletes)
+  previousData  Json?
+  /// JSON of proposed changes to apply on approval
+  newData       Json?
+  requestedById String
+  status        ApprovalStatus     @default(PENDING)
+  reviewedById  String?
+  reviewedAt    DateTime?          @db.Timestamptz
+  notes         String?            @db.Text
+  createdAt     DateTime           @default(now()) @db.Timestamptz
+
+  // Relations
+  requestedBy User  @relation("ApprovalRequestedBy", fields: [requestedById], references: [id])
+  reviewedBy  User? @relation("ApprovalReviewedBy", fields: [reviewedById], references: [id])
+
+  @@index([status])
+  @@index([entityType, entityId])
+  @@index([requestedById])
+  @@index([createdAt])
+  @@map("approvals")
+}
+
+/// Financial audit log — append-only. Stores full entity snapshots with linked Transaction data.
+/// No UPDATE or DELETE API endpoints are exposed for this table.
+model AuditLog {
+  id            String   @id @default(uuid())
+  entityType    String   @db.VarChar(100)
+  /// UUID of the audited entity
+  entityId      String   @db.Uuid
+  action        String   @db.VarChar(100)
+  /// JSON snapshot before the change
+  previousData  Json?
+  /// JSON snapshot after the change (required)
+  newData       Json
+  /// Linked transaction (full record available via relation)
+  transactionId String?
+  performedById String
+  createdAt     DateTime @default(now()) @db.Timestamptz
+
+  // Relations
+  transaction Transaction? @relation(fields: [transactionId], references: [id], onDelete: SetNull)
+  performedBy User         @relation("AuditLogPerformedBy", fields: [performedById], references: [id])
+
+  @@index([entityType, entityId])
+  @@index([performedById])
+  @@index([createdAt])
+  @@index([transactionId])
+  @@map("audit_logs")
+}
+
+/// System-wide activity log — append-only. Captures all user/system actions.
+/// No UPDATE or DELETE API endpoints are exposed for this table.
+model ActivityLog {
+  id          String   @id @default(uuid())
+  userId      String
+  action      String   @db.VarChar(100)
+  description String   @db.Text
+  metadata    Json?
+  createdAt   DateTime @default(now()) @db.Timestamptz
+
+  // Relations
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([createdAt])
+  @@index([action])
+  @@map("activity_logs")
+}

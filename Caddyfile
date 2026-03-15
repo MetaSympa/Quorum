@@ -1,0 +1,11 @@
+{$DOMAIN:localhost} {
+    reverse_proxy app:3000
+
+    header {
+        -Server
+    }
+
+    log {
+        output stdout
+    }
+}

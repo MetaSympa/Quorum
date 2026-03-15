@@ -1,0 +1,1862 @@
+openapi: 3.0.3
+info:
+  title: DPS Dashboard API
+  description: >
+    Deshapriya Park Durga Puja Club Management Dashboard API.
+    All endpoints require authentication unless marked as public.
+    Role enforcement is server-side on every route.
+  version: 1.0.0
+  contact:
+    name: DPS Dashboard Team
+
+servers:
+  - url: http://localhost:3000/api
+    description: Local development
+  - url: http://{vps_ip}/api
+    description: LunaNode VPS
+
+tags:
+  - name: Auth
+    description: Authentication and session management
+  - name: Members
+    description: Member CRUD and sub-member management
+  - name: Memberships
+    description: Membership periods and status lifecycle
+  - name: Payments
+    description: Razorpay order creation and verification
+  - name: Webhooks
+    description: Razorpay webhook handler
+  - name: Transactions
+    description: Cash in/out management
+  - name: Sponsors
+    description: Sponsor CRUD
+  - name: SponsorLinks
+    description: Sponsor payment link management
+  - name: Approvals
+    description: Approval queue management
+  - name: Logs
+    description: Audit and activity logs
+  - name: Receipts
+    description: Receipt generation
+  - name: Notifications
+    description: WhatsApp notification triggers
+  - name: Dashboard
+    description: Dashboard statistics
+
+components:
+  securitySchemes:
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: next-auth.session-token
+      description: HTTP-only JWT session cookie set by NextAuth
+
+  schemas:
+    # --- Enums ---
+    Role:
+      type: string
+      enum: [ADMIN, OPERATOR, MEMBER]
+
+    MembershipStatus:
+      type: string
+      enum: [PENDING_APPROVAL, PENDING_PAYMENT, ACTIVE, EXPIRED, SUSPENDED]
+
+    MembershipType:
+      type: string
+      enum: [MONTHLY, HALF_YEARLY, ANNUAL]
+
+    TransactionType:
+      type: string
+      enum: [CASH_IN, CASH_OUT]
+
+    TransactionCategory:
+      type: string
+      enum: [MEMBERSHIP_FEE, APPLICATION_FEE, SPONSORSHIP, EXPENSE, OTHER]
+
+    PaymentMode:
+      type: string
+      enum: [UPI, BANK_TRANSFER, CASH]
+
+    SponsorPurpose:
+      type: string
+      enum: [TITLE_SPONSOR, GOLD_SPONSOR, SILVER_SPONSOR, FOOD_PARTNER, MEDIA_PARTNER, STALL_VENDOR, MARKETING_PARTNER]
+
+    ApprovalStatus:
+      type: string
+      enum: [PENDING, APPROVED, REJECTED]
+
+    ApprovalEntityType:
+      type: string
+      enum: [TRANSACTION, MEMBER_ADD, MEMBER_EDIT, MEMBER_DELETE, MEMBERSHIP]
+
+    ApprovalSource:
+      type: string
+      enum: [MANUAL, RAZORPAY_WEBHOOK]
+
+    # --- Request/Response Models ---
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: string
+        details:
+          type: object
+
+    ChangePasswordRequest:
+      type: object
+      required: [currentPassword, newPassword]
+      properties:
+        currentPassword:
+          type: string
+          minLength: 8
+        newPassword:
+          type: string
+          minLength: 8
+
+    # Members
+    MemberCreate:
+      type: object
+      required: [name, email, phone, address]
+      properties:
+        name:
+          type: string
+          maxLength: 255
+        email:
+          type: string
+          format: email
+        phone:
+          type: string
+          pattern: '^\+91\d{10}$'
+        address:
+          type: string
+
+    MemberUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+          maxLength: 255
+        email:
+          type: string
+          format: email
+        phone:
+          type: string
+          pattern: '^\+91\d{10}$'
+        address:
+          type: string
+
+    MemberResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        memberId:
+          type: string
+          description: "Format: DPC-YYYY-NNNN-00"
+        name:
+          type: string
+        email:
+          type: string
+        phone:
+          type: string
+        address:
+          type: string
+        membershipStatus:
+          $ref: '#/components/schemas/MembershipStatus'
+        joinedAt:
+          type: string
+          format: date-time
+        subMembers:
+          type: array
+          items:
+            $ref: '#/components/schemas/SubMemberResponse'
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    SubMemberCreate:
+      type: object
+      required: [name, email, phone, relation]
+      properties:
+        name:
+          type: string
+          maxLength: 255
+        email:
+          type: string
+          format: email
+        phone:
+          type: string
+          pattern: '^\+91\d{10}$'
+        relation:
+          type: string
+          maxLength: 100
+
+    SubMemberUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+        email:
+          type: string
+          format: email
+        phone:
+          type: string
+        relation:
+          type: string
+        canLogin:
+          type: boolean
+
+    SubMemberResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        memberId:
+          type: string
+          description: "Format: DPC-YYYY-NNNN-SS (01-03)"
+        name:
+          type: string
+        email:
+          type: string
+        phone:
+          type: string
+        relation:
+          type: string
+        canLogin:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+
+    # Memberships
+    MembershipCreate:
+      type: object
+      required: [memberId, type]
+      properties:
+        memberId:
+          type: string
+          format: uuid
+        type:
+          $ref: '#/components/schemas/MembershipType'
+        isApplicationFee:
+          type: boolean
+          default: false
+
+    MembershipUpdate:
+      type: object
+      properties:
+        type:
+          $ref: '#/components/schemas/MembershipType'
+        status:
+          $ref: '#/components/schemas/ApprovalStatus'
+
+    MembershipResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        memberId:
+          type: string
+          format: uuid
+        type:
+          $ref: '#/components/schemas/MembershipType'
+        amount:
+          type: number
+          format: decimal
+        startDate:
+          type: string
+          format: date
+        endDate:
+          type: string
+          format: date
+        isApplicationFee:
+          type: boolean
+        status:
+          $ref: '#/components/schemas/ApprovalStatus'
+        createdAt:
+          type: string
+          format: date-time
+
+    # Payments
+    CreateOrderRequest:
+      type: object
+      required: [amount, membershipType]
+      properties:
+        amount:
+          type: number
+          format: decimal
+          description: "Must match exact fee: 250 (monthly), 1500 (half-yearly), 3000 (annual), 10000 (application)"
+        membershipType:
+          $ref: '#/components/schemas/MembershipType'
+        memberId:
+          type: string
+          format: uuid
+          description: "Member paying for (required for pay-on-behalf)"
+        isApplicationFee:
+          type: boolean
+          default: false
+
+    CreateOrderResponse:
+      type: object
+      properties:
+        orderId:
+          type: string
+        amount:
+          type: number
+        currency:
+          type: string
+          default: INR
+        keyId:
+          type: string
+          description: "Razorpay key ID for client-side checkout"
+
+    VerifyPaymentRequest:
+      type: object
+      required: [razorpay_order_id, razorpay_payment_id, razorpay_signature]
+      properties:
+        razorpay_order_id:
+          type: string
+        razorpay_payment_id:
+          type: string
+        razorpay_signature:
+          type: string
+
+    VerifyPaymentResponse:
+      type: object
+      properties:
+        verified:
+          type: boolean
+        transactionId:
+          type: string
+          format: uuid
+        receiptNumber:
+          type: string
+
+    # Transactions
+    TransactionCreate:
+      type: object
+      required: [type, category, amount, paymentMode, description]
+      properties:
+        type:
+          $ref: '#/components/schemas/TransactionType'
+        category:
+          $ref: '#/components/schemas/TransactionCategory'
+        amount:
+          type: number
+          format: decimal
+          minimum: 0.01
+        paymentMode:
+          $ref: '#/components/schemas/PaymentMode'
+        description:
+          type: string
+        sponsorPurpose:
+          $ref: '#/components/schemas/SponsorPurpose'
+        memberId:
+          type: string
+          format: uuid
+        sponsorId:
+          type: string
+          format: uuid
+        senderName:
+          type: string
+        senderPhone:
+          type: string
+
+    TransactionUpdate:
+      type: object
+      properties:
+        type:
+          $ref: '#/components/schemas/TransactionType'
+        category:
+          $ref: '#/components/schemas/TransactionCategory'
+        amount:
+          type: number
+          format: decimal
+        paymentMode:
+          $ref: '#/components/schemas/PaymentMode'
+        description:
+          type: string
+        sponsorPurpose:
+          $ref: '#/components/schemas/SponsorPurpose'
+        senderName:
+          type: string
+        senderPhone:
+          type: string
+
+    TransactionResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        type:
+          $ref: '#/components/schemas/TransactionType'
+        category:
+          $ref: '#/components/schemas/TransactionCategory'
+        amount:
+          type: number
+        paymentMode:
+          $ref: '#/components/schemas/PaymentMode'
+        description:
+          type: string
+        sponsorPurpose:
+          $ref: '#/components/schemas/SponsorPurpose'
+        memberId:
+          type: string
+          format: uuid
+        sponsorId:
+          type: string
+          format: uuid
+        enteredBy:
+          type: object
+          properties:
+            id:
+              type: string
+            name:
+              type: string
+        approvalStatus:
+          $ref: '#/components/schemas/ApprovalStatus'
+        approvalSource:
+          $ref: '#/components/schemas/ApprovalSource'
+        approvedBy:
+          type: object
+          nullable: true
+          properties:
+            id:
+              type: string
+            name:
+              type: string
+        approvedAt:
+          type: string
+          format: date-time
+          nullable: true
+        razorpayPaymentId:
+          type: string
+          nullable: true
+        razorpayOrderId:
+          type: string
+          nullable: true
+        senderName:
+          type: string
+          nullable: true
+        senderPhone:
+          type: string
+          nullable: true
+        senderUpiId:
+          type: string
+          nullable: true
+        senderBankAccount:
+          type: string
+          nullable: true
+        senderBankName:
+          type: string
+          nullable: true
+        receiptNumber:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+
+    # Sponsors
+    SponsorCreate:
+      type: object
+      required: [name, phone, email]
+      properties:
+        name:
+          type: string
+          maxLength: 255
+        phone:
+          type: string
+          pattern: '^\+91\d{10}$'
+        email:
+          type: string
+          format: email
+        company:
+          type: string
+          maxLength: 255
+
+    SponsorUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+        phone:
+          type: string
+        email:
+          type: string
+        company:
+          type: string
+
+    SponsorResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        phone:
+          type: string
+        email:
+          type: string
+        company:
+          type: string
+          nullable: true
+        createdBy:
+          type: object
+          properties:
+            id:
+              type: string
+            name:
+              type: string
+        createdAt:
+          type: string
+          format: date-time
+
+    # Sponsor Links
+    SponsorLinkCreate:
+      type: object
+      required: [upiId]
+      properties:
+        sponsorId:
+          type: string
+          format: uuid
+        amount:
+          type: number
+          format: decimal
+        upiId:
+          type: string
+        bankDetails:
+          type: object
+          properties:
+            accountNumber:
+              type: string
+            bankName:
+              type: string
+            ifscCode:
+              type: string
+        expiresAt:
+          type: string
+          format: date-time
+
+    SponsorLinkResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        sponsorId:
+          type: string
+          format: uuid
+          nullable: true
+        token:
+          type: string
+        amount:
+          type: number
+          nullable: true
+        upiId:
+          type: string
+        bankDetails:
+          type: object
+          nullable: true
+        isActive:
+          type: boolean
+        createdBy:
+          type: object
+          properties:
+            id:
+              type: string
+            name:
+              type: string
+        createdAt:
+          type: string
+          format: date-time
+        expiresAt:
+          type: string
+          format: date-time
+          nullable: true
+        url:
+          type: string
+          description: "Full public checkout URL"
+
+    SponsorCheckoutResponse:
+      type: object
+      properties:
+        token:
+          type: string
+        sponsorName:
+          type: string
+          nullable: true
+        amount:
+          type: number
+          nullable: true
+        upiId:
+          type: string
+        bankDetails:
+          type: object
+          nullable: true
+        isActive:
+          type: boolean
+        expiresAt:
+          type: string
+          nullable: true
+
+    # Approvals
+    ApprovalResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        entityType:
+          $ref: '#/components/schemas/ApprovalEntityType'
+        entityId:
+          type: string
+          format: uuid
+        action:
+          type: string
+        previousData:
+          type: object
+          nullable: true
+        newData:
+          type: object
+          nullable: true
+        requestedBy:
+          type: object
+          properties:
+            id:
+              type: string
+            name:
+              type: string
+        status:
+          $ref: '#/components/schemas/ApprovalStatus'
+        reviewedBy:
+          type: object
+          nullable: true
+          properties:
+            id:
+              type: string
+            name:
+              type: string
+        reviewedAt:
+          type: string
+          format: date-time
+          nullable: true
+        notes:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+
+    ApprovalAction:
+      type: object
+      properties:
+        notes:
+          type: string
+          description: "Optional notes from the admin"
+
+    # Logs
+    AuditLogResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        entityType:
+          type: string
+        entityId:
+          type: string
+          format: uuid
+        action:
+          type: string
+        previousData:
+          type: object
+          nullable: true
+        newData:
+          type: object
+        transaction:
+          $ref: '#/components/schemas/TransactionResponse'
+        performedBy:
+          type: object
+          properties:
+            id:
+              type: string
+            name:
+              type: string
+        createdAt:
+          type: string
+          format: date-time
+
+    ActivityLogResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        user:
+          type: object
+          properties:
+            id:
+              type: string
+            name:
+              type: string
+        action:
+          type: string
+        description:
+          type: string
+        metadata:
+          type: object
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+
+    # Dashboard
+    DashboardStatsResponse:
+      type: object
+      properties:
+        totalMembers:
+          type: integer
+        activeMembers:
+          type: integer
+        expiredMembers:
+          type: integer
+        pendingApprovals:
+          type: integer
+        totalCashIn:
+          type: number
+        totalCashOut:
+          type: number
+        balance:
+          type: number
+        recentTransactions:
+          type: array
+          items:
+            $ref: '#/components/schemas/TransactionResponse'
+        recentActivity:
+          type: array
+          items:
+            $ref: '#/components/schemas/ActivityLogResponse'
+        recentAudit:
+          type: array
+          items:
+            $ref: '#/components/schemas/AuditLogResponse'
+
+    # Receipts
+    ReceiptResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        receiptNumber:
+          type: string
+        transaction:
+          $ref: '#/components/schemas/TransactionResponse'
+        member:
+          $ref: '#/components/schemas/MemberResponse'
+        htmlContent:
+          type: string
+          description: "Printable HTML receipt content"
+
+    # Notifications
+    WhatsAppNotificationRequest:
+      type: object
+      required: [templateName, recipientPhone]
+      properties:
+        templateName:
+          type: string
+        recipientPhone:
+          type: string
+        parameters:
+          type: object
+
+    # Pagination
+    PaginatedResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items: {}
+        total:
+          type: integer
+        page:
+          type: integer
+        pageSize:
+          type: integer
+        totalPages:
+          type: integer
+
+  parameters:
+    PageParam:
+      name: page
+      in: query
+      schema:
+        type: integer
+        default: 1
+        minimum: 1
+    PageSizeParam:
+      name: pageSize
+      in: query
+      schema:
+        type: integer
+        default: 20
+        minimum: 1
+        maximum: 100
+    SearchParam:
+      name: search
+      in: query
+      schema:
+        type: string
+    StatusFilterParam:
+      name: status
+      in: query
+      schema:
+        type: string
+
+security:
+  - cookieAuth: []
+
+paths:
+  # ==================== AUTH ====================
+
+  /auth/{nextauth}:
+    post:
+      tags: [Auth]
+      summary: NextAuth.js authentication endpoint
+      description: "Handles login via Credentials provider. Returns JWT in HTTP-only cookie."
+      security: []
+      parameters:
+        - name: nextauth
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+      responses:
+        '200':
+          description: Authentication successful, session cookie set
+        '401':
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '429':
+          description: Rate limited (5 attempts / 15 min)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /auth/change-password:
+    post:
+      tags: [Auth]
+      summary: Change password (forced for temp passwords)
+      description: "Users with isTempPassword=true must call this before accessing any dashboard route."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChangePasswordRequest'
+      responses:
+        '200':
+          description: Password changed successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  # ==================== MEMBERS ====================
+
+  /members:
+    get:
+      tags: [Members]
+      summary: List all members
+      description: "Admin and Operator only. Supports pagination, search, status filter."
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/PageSizeParam'
+        - $ref: '#/components/parameters/SearchParam'
+        - $ref: '#/components/parameters/StatusFilterParam'
+      responses:
+        '200':
+          description: Paginated list of members
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/PaginatedResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/MemberResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden (MEMBER role)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    post:
+      tags: [Members]
+      summary: Create a new member
+      description: >
+        Admin: creates directly (auto-approved).
+        Operator: creates Approval record (MEMBER_ADD), member not added until admin approves.
+        Auto-generates DPC-YYYY-NNNN-00 member ID.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MemberCreate'
+      responses:
+        '201':
+          description: Member created (or approval pending for operator)
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/MemberResponse'
+                  - $ref: '#/components/schemas/ApprovalResponse'
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /members/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+
+    get:
+      tags: [Members]
+      summary: Get single member
+      description: "Admin/Operator: any member. Member: own record only."
+      responses:
+        '200':
+          description: Member details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MemberResponse'
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    put:
+      tags: [Members]
+      summary: Update member
+      description: >
+        Admin: updates directly.
+        Operator: creates Approval record (MEMBER_EDIT) with previousData/newData.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MemberUpdate'
+      responses:
+        '200':
+          description: Member updated (or approval pending for operator)
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/MemberResponse'
+                  - $ref: '#/components/schemas/ApprovalResponse'
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    delete:
+      tags: [Members]
+      summary: Delete member
+      description: >
+        Admin: deletes directly.
+        Operator: creates Approval record (MEMBER_DELETE).
+      responses:
+        '200':
+          description: Member deleted (or approval pending for operator)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /members/{id}/sub-members:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+
+    post:
+      tags: [Members]
+      summary: Add sub-member
+      description: "Max 3 sub-members per primary member. Auto-generates DPC-YYYY-NNNN-SS ID."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SubMemberCreate'
+      responses:
+        '201':
+          description: Sub-member created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SubMemberResponse'
+        '400':
+          description: Validation error or max 3 sub-members reached
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    put:
+      tags: [Members]
+      summary: Update sub-member
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SubMemberUpdate'
+      responses:
+        '200':
+          description: Sub-member updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SubMemberResponse'
+
+    delete:
+      tags: [Members]
+      summary: Delete sub-member
+      responses:
+        '200':
+          description: Sub-member deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+
+  # ==================== MEMBERSHIPS ====================
+
+  /memberships:
+    get:
+      tags: [Memberships]
+      summary: List memberships
+      description: "Admin/Operator: all. Member: own only."
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/PageSizeParam'
+        - name: memberId
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - $ref: '#/components/parameters/StatusFilterParam'
+      responses:
+        '200':
+          description: Paginated memberships
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/PaginatedResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/MembershipResponse'
+
+    post:
+      tags: [Memberships]
+      summary: Create membership period
+      description: >
+        Creates a new membership period. Amount auto-calculated from type.
+        Operator: creates Approval record (MEMBERSHIP).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MembershipCreate'
+      responses:
+        '201':
+          description: Membership created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MembershipResponse'
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /memberships/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+
+    get:
+      tags: [Memberships]
+      summary: Get single membership
+      responses:
+        '200':
+          description: Membership details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MembershipResponse'
+
+    put:
+      tags: [Memberships]
+      summary: Update membership
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MembershipUpdate'
+      responses:
+        '200':
+          description: Membership updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MembershipResponse'
+
+  # ==================== PAYMENTS ====================
+
+  /payments/create-order:
+    post:
+      tags: [Payments]
+      summary: Create Razorpay order
+      description: >
+        Creates a Razorpay order for UPI or bank transfer payment.
+        Amount must match exact fee for selected membership type.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateOrderRequest'
+      responses:
+        '200':
+          description: Razorpay order created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreateOrderResponse'
+        '400':
+          description: Amount mismatch or validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /payments/verify:
+    post:
+      tags: [Payments]
+      summary: Verify Razorpay payment signature
+      description: "Client-side verification after checkout. Confirms payment with Razorpay."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VerifyPaymentRequest'
+      responses:
+        '200':
+          description: Payment verified
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VerifyPaymentResponse'
+        '400':
+          description: Signature verification failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  # ==================== WEBHOOKS ====================
+
+  /webhooks/razorpay:
+    post:
+      tags: [Webhooks]
+      summary: Razorpay webhook handler
+      description: >
+        Receives payment.captured events from Razorpay.
+        Verifies HMAC signature, creates full Transaction record,
+        auto-approves, updates membership status, generates receipt,
+        writes audit + activity logs, sends WhatsApp notifications.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: Webhook processed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+        '400':
+          description: Invalid signature
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  # ==================== TRANSACTIONS ====================
+
+  /transactions:
+    get:
+      tags: [Transactions]
+      summary: List transactions
+      description: "Admin/Operator only. Supports pagination and filters."
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/PageSizeParam'
+        - name: type
+          in: query
+          schema:
+            $ref: '#/components/schemas/TransactionType'
+        - name: category
+          in: query
+          schema:
+            $ref: '#/components/schemas/TransactionCategory'
+        - $ref: '#/components/parameters/StatusFilterParam'
+      responses:
+        '200':
+          description: Paginated transactions
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/PaginatedResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/TransactionResponse'
+
+    post:
+      tags: [Transactions]
+      summary: Create transaction (cash entry)
+      description: >
+        Admin: creates directly (auto-approved).
+        Operator: creates Approval record (TRANSACTION).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TransactionCreate'
+      responses:
+        '201':
+          description: Transaction created (or approval pending)
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/TransactionResponse'
+                  - $ref: '#/components/schemas/ApprovalResponse'
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /transactions/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+
+    get:
+      tags: [Transactions]
+      summary: Get single transaction
+      responses:
+        '200':
+          description: Transaction details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TransactionResponse'
+
+    put:
+      tags: [Transactions]
+      summary: Update transaction
+      description: >
+        Admin: updates directly. Operator: creates Approval record.
+        Cannot update auto-approved Razorpay transactions.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TransactionUpdate'
+      responses:
+        '200':
+          description: Transaction updated (or approval pending)
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/TransactionResponse'
+                  - $ref: '#/components/schemas/ApprovalResponse'
+
+    delete:
+      tags: [Transactions]
+      summary: Delete transaction
+      description: >
+        Admin: deletes directly. Operator: creates Approval record.
+        Cannot delete auto-approved Razorpay transactions.
+      responses:
+        '200':
+          description: Transaction deleted (or approval pending)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+
+  # ==================== SPONSORS ====================
+
+  /sponsors:
+    get:
+      tags: [Sponsors]
+      summary: List sponsors
+      description: "Admin/Operator only."
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/PageSizeParam'
+        - $ref: '#/components/parameters/SearchParam'
+      responses:
+        '200':
+          description: Paginated sponsors
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/PaginatedResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/SponsorResponse'
+
+    post:
+      tags: [Sponsors]
+      summary: Create sponsor
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SponsorCreate'
+      responses:
+        '201':
+          description: Sponsor created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SponsorResponse'
+
+  /sponsors/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+
+    get:
+      tags: [Sponsors]
+      summary: Get single sponsor
+      responses:
+        '200':
+          description: Sponsor details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SponsorResponse'
+
+    put:
+      tags: [Sponsors]
+      summary: Update sponsor
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SponsorUpdate'
+      responses:
+        '200':
+          description: Sponsor updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SponsorResponse'
+
+    delete:
+      tags: [Sponsors]
+      summary: Delete sponsor
+      responses:
+        '200':
+          description: Sponsor deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+
+  # ==================== SPONSOR LINKS ====================
+
+  /sponsor-links:
+    get:
+      tags: [SponsorLinks]
+      summary: List sponsor links
+      description: "Admin/Operator only."
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/PageSizeParam'
+      responses:
+        '200':
+          description: Paginated sponsor links
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/PaginatedResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/SponsorLinkResponse'
+
+    post:
+      tags: [SponsorLinks]
+      summary: Generate sponsor payment link
+      description: "Admin/Operator. Generates a unique token for the public checkout page."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SponsorLinkCreate'
+      responses:
+        '201':
+          description: Sponsor link created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SponsorLinkResponse'
+
+  /sponsor-links/{token}:
+    parameters:
+      - name: token
+        in: path
+        required: true
+        schema:
+          type: string
+
+    get:
+      tags: [SponsorLinks]
+      summary: Get sponsor checkout data (public)
+      description: "Public endpoint. Returns checkout data for the sponsor payment page."
+      security: []
+      responses:
+        '200':
+          description: Sponsor checkout data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SponsorCheckoutResponse'
+        '404':
+          description: Link not found, expired, or inactive
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  # ==================== APPROVALS ====================
+
+  /approvals:
+    get:
+      tags: [Approvals]
+      summary: List pending approvals
+      description: "Admin only. Returns all PENDING approvals."
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/PageSizeParam'
+        - name: entityType
+          in: query
+          schema:
+            $ref: '#/components/schemas/ApprovalEntityType'
+      responses:
+        '200':
+          description: Paginated approvals
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/PaginatedResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/ApprovalResponse'
+        '403':
+          description: Not admin
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /approvals/{id}/approve:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+
+    post:
+      tags: [Approvals]
+      summary: Approve an entry
+      description: >
+        Admin only. Applies the change to the target entity,
+        writes audit + activity log, sends WhatsApp notification.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ApprovalAction'
+      responses:
+        '200':
+          description: Approval applied
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApprovalResponse'
+        '404':
+          description: Approval not found or not pending
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /approvals/{id}/reject:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+
+    post:
+      tags: [Approvals]
+      summary: Reject an entry
+      description: >
+        Admin only. Discards the proposed change,
+        writes audit + activity log, sends WhatsApp to operator.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ApprovalAction'
+      responses:
+        '200':
+          description: Rejection recorded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApprovalResponse'
+        '404':
+          description: Approval not found or not pending
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  # ==================== LOGS ====================
+
+  /audit-log:
+    get:
+      tags: [Logs]
+      summary: Financial audit log
+      description: "Admin: full access. Operator: read-only. Includes full Transaction data."
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/PageSizeParam'
+        - name: entityType
+          in: query
+          schema:
+            type: string
+        - name: startDate
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: endDate
+          in: query
+          schema:
+            type: string
+            format: date
+      responses:
+        '200':
+          description: Paginated audit log entries
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/PaginatedResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/AuditLogResponse'
+
+  /activity-log:
+    get:
+      tags: [Logs]
+      summary: System-wide activity log
+      description: "Admin: full access. Operator: read-only."
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/PageSizeParam'
+        - name: action
+          in: query
+          schema:
+            type: string
+        - name: startDate
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: endDate
+          in: query
+          schema:
+            type: string
+            format: date
+      responses:
+        '200':
+          description: Paginated activity log entries
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/PaginatedResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/ActivityLogResponse'
+
+  # ==================== RECEIPTS ====================
+
+  /receipts/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          description: Transaction ID
+
+    get:
+      tags: [Receipts]
+      summary: Generate printable receipt
+      description: "Admin/Operator. Generates a printable HTML receipt for a transaction."
+      responses:
+        '200':
+          description: Receipt data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReceiptResponse'
+        '404':
+          description: Transaction not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  # ==================== NOTIFICATIONS ====================
+
+  /notifications/whatsapp:
+    post:
+      tags: [Notifications]
+      summary: Trigger WhatsApp notification
+      description: >
+        Admin/Operator. Sends a WhatsApp notification using a pre-approved template.
+        Gracefully skips if Meta API not configured.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WhatsAppNotificationRequest'
+      responses:
+        '200':
+          description: Notification sent (or skipped if unconfigured)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  sent:
+                    type: boolean
+                  message:
+                    type: string
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  # ==================== DASHBOARD ====================
+
+  /dashboard/stats:
+    get:
+      tags: [Dashboard]
+      summary: Dashboard summary statistics
+      description: >
+        Returns role-appropriate stats.
+        Admin: full summary (members, finances, approvals, recent activity/audit).
+        Operator: member summary, financial summary, recent activity/audit.
+        Member: own membership details only.
+      responses:
+        '200':
+          description: Dashboard stats
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DashboardStatsResponse'
