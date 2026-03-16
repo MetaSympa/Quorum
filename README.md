@@ -2,6 +2,8 @@
 
 **Community membership management — built for transparency.**
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](#license) [![Next.js](https://img.shields.io/badge/Next.js-14-black)](https://nextjs.org/) [![TypeScript](https://img.shields.io/badge/TypeScript-5-blue)](https://www.typescriptlang.org/)
+
 A self-hosted dashboard for membership organizations, community clubs, and committees. Handles members, payments, sponsorships, approvals, and financial audit — all from a single deployable application.
 
 Open source. Self-hosted. No vendor lock-in.
