@@ -6,6 +6,8 @@ A self-hosted dashboard for membership organizations, community clubs, and commi
 
 Open source. Self-hosted. No vendor lock-in.
 
+**[v1.0.0 Release Notes](https://github.com/MetaSympa/Quorum/releases/tag/v0.0.1)** | [RELEASE.md](RELEASE.md)
+
 ---
 
 ## Quick Start
