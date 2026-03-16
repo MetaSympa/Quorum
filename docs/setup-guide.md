@@ -1,6 +1,6 @@
 # Setup Guide
 
-This guide walks you through running the DPS Dashboard on your local machine for development.
+This guide walks you through running Quorum on your local machine for development.
 
 ---
 

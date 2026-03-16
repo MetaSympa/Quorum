@@ -1,52 +1,10 @@
 /**
- * Unit tests for membership expiry cron date-comparison logic.
- *
- * Tests use `getTodayUTC` and `addDaysUTC` helpers directly to verify
- * the core boundary conditions without requiring a database connection.
- *
- * Business rules tested:
- *   - User 15 days from expiry → reminder
- *   - User 1 day from expiry → reminder
- *   - User expired yesterday → mark expired
- *   - User expired today → mark expired (same-day boundary)
- *   - User active with 30 days left → no action
- *   - User with expiry > 15 days → no action
+ * Unit tests for exported cron date helpers.
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { describe, it, expect } from "vitest";
 import { getTodayUTC, addDaysUTC } from "@/lib/cron";
 import { EXPIRY_REMINDER_DAYS } from "@/types";
-
-// ---------------------------------------------------------------------------
-// Helpers for boundary checks (mirrors logic in cron.ts)
-// ---------------------------------------------------------------------------
-
-type CronAction = "expire" | "remind" | "none";
-
-/**
- * Pure function that mirrors the decision logic from checkMembershipExpiry().
- * Given a membership expiry date and "today", returns what action would be taken.
- */
-function getCronAction(expiryDate: Date, today: Date): CronAction {
-  // Normalise expiry to midnight UTC
-  const expiryUTC = new Date(
-    Date.UTC(
-      expiryDate.getFullYear(),
-      expiryDate.getMonth(),
-      expiryDate.getDate()
-    )
-  );
-
-  const reminderCutoff = addDaysUTC(today, EXPIRY_REMINDER_DAYS);
-
-  if (expiryUTC < today) {
-    return "expire";
-  }
-  if (expiryUTC <= reminderCutoff) {
-    return "remind";
-  }
-  return "none";
-}
 
 // ---------------------------------------------------------------------------
 // Tests for getTodayUTC
@@ -96,76 +54,6 @@ describe("addDaysUTC", () => {
 });
 
 // ---------------------------------------------------------------------------
-// Core boundary: expiry decision logic
-// ---------------------------------------------------------------------------
-
-describe("getCronAction — expiry boundary conditions", () => {
-  // Use a fixed "today" for deterministic tests: 2026-03-15 UTC midnight
-  const today = new Date(Date.UTC(2026, 2, 15)); // 2026-03-15
-
-  it("user expired yesterday → expire", () => {
-    const expiry = new Date(Date.UTC(2026, 2, 14)); // 2026-03-14
-    expect(getCronAction(expiry, today)).toBe("expire");
-  });
-
-  it("user expires today → expire (same-day boundary: expiry < today is false but still counts as expired)", () => {
-    // expiry = today → expiryUTC is NOT < today (they are equal), so it falls into remind window
-    // This is by design: expiry on exact today = 0 days left = reminder, not yet expired.
-    // The day AFTER the expiry date is when the system marks them expired.
-    const expiry = new Date(Date.UTC(2026, 2, 15)); // 2026-03-15 = today
-    // expiryUTC === today → NOT < today → falls into reminder window (0 days left)
-    expect(getCronAction(expiry, today)).toBe("remind");
-  });
-
-  it("user expired 7 days ago → expire", () => {
-    const expiry = new Date(Date.UTC(2026, 2, 8)); // 2026-03-08
-    expect(getCronAction(expiry, today)).toBe("expire");
-  });
-
-  it("user 1 day from expiry → remind", () => {
-    const expiry = new Date(Date.UTC(2026, 2, 16)); // 2026-03-16 (tomorrow)
-    expect(getCronAction(expiry, today)).toBe("remind");
-  });
-
-  it("user 15 days from expiry → remind (boundary edge)", () => {
-    const expiry = new Date(Date.UTC(2026, 2, 30)); // 2026-03-30 (15 days from now)
-    expect(getCronAction(expiry, today)).toBe("remind");
-  });
-
-  it("user 16 days from expiry → no action (just outside reminder window)", () => {
-    const expiry = new Date(Date.UTC(2026, 2, 31)); // 2026-03-31 (16 days from now)
-    expect(getCronAction(expiry, today)).toBe("none");
-  });
-
-  it("user 30 days from expiry → no action", () => {
-    const expiry = new Date(Date.UTC(2026, 3, 14)); // 2026-04-14 (30 days from now)
-    expect(getCronAction(expiry, today)).toBe("none");
-  });
-
-  it("user 365 days from expiry → no action", () => {
-    const expiry = new Date(Date.UTC(2027, 2, 15)); // one year from now
-    expect(getCronAction(expiry, today)).toBe("none");
-  });
-});
-
-// ---------------------------------------------------------------------------
-// Already-expired user — cron should not re-process them
-// ---------------------------------------------------------------------------
-
-describe("getCronAction — already expired users", () => {
-  const today = new Date(Date.UTC(2026, 2, 15));
-
-  it("user already expired long ago → expire action (DB update is idempotent)", () => {
-    // The cron finds users with membershipStatus=ACTIVE — expired users are
-    // already EXPIRED in DB, so they won't appear in the query.
-    // This test documents that the date comparison itself would return "expire"
-    // for any past date, and the DB query excludes already-expired users.
-    const expiry = new Date(Date.UTC(2025, 0, 1)); // Jan 2025
-    expect(getCronAction(expiry, today)).toBe("expire");
-  });
-});
-
-// ---------------------------------------------------------------------------
 // EXPIRY_REMINDER_DAYS constant
 // ---------------------------------------------------------------------------
 
@@ -181,28 +69,168 @@ describe("EXPIRY_REMINDER_DAYS", () => {
 });
 
 // ---------------------------------------------------------------------------
-// Edge cases for date normalisation
+// checkMembershipExpiry — behavior tests (mocked Prisma)
 // ---------------------------------------------------------------------------
 
-describe("Date normalisation", () => {
-  it("handles expiry date with midnight UTC correctly", () => {
-    const today = new Date(Date.UTC(2026, 2, 15)); // 2026-03-15 midnight UTC
+import { vi, beforeEach } from "vitest";
 
-    // Expiry on March 13 midnight UTC — clearly in the past
-    const expiryMidnight = new Date(Date.UTC(2026, 2, 13, 0, 0, 0));
-    expect(getCronAction(expiryMidnight, today)).toBe("expire");
+vi.mock("@/lib/prisma", () => ({
+  prisma: {
+    user: { findUnique: vi.fn(), findMany: vi.fn(), create: vi.fn(), update: vi.fn() },
+    member: { updateMany: vi.fn() },
+    $transaction: vi.fn(),
+  },
+}));
+vi.mock("@/lib/audit", () => ({
+  logActivity: vi.fn(),
+}));
+
+import { prisma } from "@/lib/prisma";
+const mockPrisma = vi.mocked(prisma);
+
+import { checkMembershipExpiry } from "@/lib/cron";
+import { logActivity } from "@/lib/audit";
+
+const systemUser = { id: "system-1" };
+
+beforeEach(() => {
+  vi.clearAllMocks();
+  // System user exists
+  mockPrisma.user.findUnique.mockResolvedValue(systemUser as never);
+  mockPrisma.$transaction.mockImplementation(async (cb: unknown) => (cb as (tx: typeof mockPrisma) => Promise<unknown>)(mockPrisma));
+});
+
+describe("checkMembershipExpiry — reminder path", () => {
+  it("sends reminder for users expiring within 15 days", async () => {
+    const expiringIn5Days = new Date();
+    expiringIn5Days.setUTCDate(expiringIn5Days.getUTCDate() + 5);
+
+    mockPrisma.user.findMany.mockResolvedValue([
+      {
+        id: "user-1",
+        memberId: "DPS-001",
+        name: "Test",
+        membershipExpiry: expiringIn5Days,
+        membershipStatus: "ACTIVE",
+        subMembers: [],
+      },
+    ] as never);
+    // For tryNotifyExpiryReminder's user lookup
+    mockPrisma.user.findUnique
+      .mockResolvedValueOnce(systemUser as never)  // getSystemUser
+      .mockResolvedValueOnce({ id: "user-1", name: "Test" } as never); // tryNotifyExpiryReminder
+
+    const result = await checkMembershipExpiry();
+
+    expect(result.processed).toBe(1);
+    expect(result.reminded).toBe(1);
+    expect(result.expired).toBe(0);
+    expect(vi.mocked(logActivity)).toHaveBeenCalledWith(
+      expect.objectContaining({ action: "membership_expiry_reminder_sent" })
+    );
   });
+});
 
-  it("handles expiry at start of month correctly", () => {
-    const today = new Date(Date.UTC(2026, 2, 15));
-    const expiryFirstOfMonth = new Date(Date.UTC(2026, 2, 1)); // March 1 — past
-    expect(getCronAction(expiryFirstOfMonth, today)).toBe("expire");
+describe("checkMembershipExpiry — expiry path", () => {
+  it("marks expired users and updates Member status", async () => {
+    const pastDate = new Date();
+    pastDate.setUTCDate(pastDate.getUTCDate() - 5);
+
+    mockPrisma.user.findMany.mockResolvedValue([
+      {
+        id: "user-2",
+        memberId: "DPS-002",
+        name: "Expired User",
+        membershipExpiry: pastDate,
+        membershipStatus: "ACTIVE",
+        subMembers: [],
+      },
+    ] as never);
+    mockPrisma.user.findUnique
+      .mockResolvedValueOnce(systemUser as never)
+      .mockResolvedValueOnce({ id: "user-2", name: "Expired User" } as never);
+
+    const result = await checkMembershipExpiry();
+
+    expect(result.processed).toBe(1);
+    expect(result.expired).toBe(1);
+    expect(result.reminded).toBe(0);
+    expect(mockPrisma.user.update).toHaveBeenCalledWith(
+      expect.objectContaining({ data: { membershipStatus: "EXPIRED" } })
+    );
+    expect(mockPrisma.member.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({ data: { membershipStatus: "EXPIRED" } })
+    );
   });
+});
 
-  it("handles leap year February correctly", () => {
-    const today = new Date(Date.UTC(2028, 1, 14)); // Feb 14, 2028 (leap year)
-    const expiryLeapDay = new Date(Date.UTC(2028, 1, 29)); // Feb 29, 2028
-    // 15 days away from Feb 14 = Feb 29 (exactly at reminder boundary)
-    expect(getCronAction(expiryLeapDay, today)).toBe("remind");
+describe("checkMembershipExpiry — notification failures do not throw", () => {
+  it("completes even when notification service is unavailable", async () => {
+    // Use a date clearly in the past (5 days ago) to avoid timezone edge cases
+    const pastDate = new Date();
+    pastDate.setUTCDate(pastDate.getUTCDate() - 5);
+
+    mockPrisma.user.findMany.mockResolvedValue([
+      {
+        id: "user-3",
+        memberId: "DPS-003",
+        name: "User",
+        membershipExpiry: pastDate,
+        membershipStatus: "ACTIVE",
+        subMembers: [],
+      },
+    ] as never);
+    mockPrisma.user.findUnique
+      .mockResolvedValueOnce(systemUser as never)
+      .mockResolvedValueOnce(null as never); // tryNotifyMembershipExpired - user not found
+
+    const result = await checkMembershipExpiry();
+
+    expect(result.expired).toBe(1);
+    // Should not throw
+  });
+});
+
+describe("checkMembershipExpiry — system user fallback/creation", () => {
+  it("creates system user if not found", async () => {
+    mockPrisma.user.findUnique.mockResolvedValueOnce(null as never); // getSystemUser - not found
+    mockPrisma.user.create.mockResolvedValue({ id: "new-system" } as never);
+    mockPrisma.user.findMany.mockResolvedValue([] as never);
+
+    const result = await checkMembershipExpiry();
+
+    expect(mockPrisma.user.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ email: "SYSTEM@dps-dashboard.internal" }),
+      })
+    );
+    expect(result.processed).toBe(0);
+  });
+});
+
+describe("checkMembershipExpiry — counts", () => {
+  it("returns correct processed/reminded/expired counts", async () => {
+    const expiringSoon = new Date();
+    expiringSoon.setUTCDate(expiringSoon.getUTCDate() + 10);
+    const expired = new Date();
+    expired.setUTCDate(expired.getUTCDate() - 5);
+    const farFuture = new Date();
+    farFuture.setUTCDate(farFuture.getUTCDate() + 60);
+
+    mockPrisma.user.findMany.mockResolvedValue([
+      { id: "u1", memberId: "M1", name: "A", membershipExpiry: expiringSoon, membershipStatus: "ACTIVE", subMembers: [] },
+      { id: "u2", memberId: "M2", name: "B", membershipExpiry: expired, membershipStatus: "ACTIVE", subMembers: [] },
+      { id: "u3", memberId: "M3", name: "C", membershipExpiry: farFuture, membershipStatus: "ACTIVE", subMembers: [] },
+    ] as never);
+    // For tryNotify calls
+    mockPrisma.user.findUnique
+      .mockResolvedValueOnce(systemUser as never)  // getSystemUser
+      .mockResolvedValue({ id: "u1" } as never);   // subsequent notify lookups
+
+    const result = await checkMembershipExpiry();
+
+    expect(result.processed).toBe(3);
+    expect(result.reminded).toBe(1);
+    expect(result.expired).toBe(1);
   });
 });

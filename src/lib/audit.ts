@@ -58,6 +58,11 @@ interface ApprovedTransactionSnapshot {
   approvalStatus?: unknown;
 }
 
+interface AuditSnapshotRecord {
+  transactionSnapshot?: Record<string, unknown> | null;
+  transaction?: TransactionAuditSnapshotSource | null;
+}
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
@@ -65,6 +70,7 @@ interface ApprovedTransactionSnapshot {
 export function buildTransactionAuditSnapshot(
   transaction: TransactionAuditSnapshotSource
 ): Record<string, unknown> {
+  const decimalCtor = (Prisma as { Decimal?: typeof Prisma.Decimal }).Decimal;
   const toIso = (value: Date | string | null | undefined) => {
     if (value == null) return null;
     return value instanceof Date ? value.toISOString() : value;
@@ -77,7 +83,7 @@ export function buildTransactionAuditSnapshot(
     amount:
       typeof transaction.amount === "number"
         ? transaction.amount.toString()
-        : transaction.amount instanceof Prisma.Decimal
+        : decimalCtor && transaction.amount instanceof decimalCtor
         ? transaction.amount.toString()
         : transaction.amount,
     paymentMode: transaction.paymentMode,
@@ -100,6 +106,24 @@ export function buildTransactionAuditSnapshot(
     sponsorId: transaction.sponsorId ?? null,
     createdAt: toIso(transaction.createdAt),
   };
+}
+
+export function resolveAuditSnapshot(
+  entry: AuditSnapshotRecord
+): Record<string, unknown> {
+  if (
+    entry.transactionSnapshot &&
+    typeof entry.transactionSnapshot === "object" &&
+    !Array.isArray(entry.transactionSnapshot)
+  ) {
+    return entry.transactionSnapshot;
+  }
+
+  if (entry.transaction) {
+    return buildTransactionAuditSnapshot(entry.transaction);
+  }
+
+  return {};
 }
 
 /**

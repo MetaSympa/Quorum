@@ -16,6 +16,7 @@ import { getServerSession } from "next-auth";
 
 import { authOptions } from "@/lib/auth";
 import DashboardShell from "@/components/layout/DashboardShell";
+import SessionProvider from "@/components/providers/SessionProvider";
 import type { Role } from "@/types";
 
 interface DashboardLayoutProps {
@@ -52,5 +53,9 @@ export default async function DashboardLayout({ children }: DashboardLayoutProps
     memberId: sessionUser.memberId ?? "DPC-????-????-00",
   };
 
-  return <DashboardShell user={user}>{children}</DashboardShell>;
+  return (
+    <SessionProvider session={session}>
+      <DashboardShell user={user}>{children}</DashboardShell>
+    </SessionProvider>
+  );
 }

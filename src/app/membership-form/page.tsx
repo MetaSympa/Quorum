@@ -35,10 +35,10 @@ export default function MembershipFormPage() {
       />
 
       {/* Back link + Print button — hidden when printing */}
-      <div className="no-print bg-orange-50 border-b border-orange-100 py-3 px-4 flex items-center justify-between">
+      <div className="no-print flex items-center justify-between border-b border-sky-100 bg-sky-50/80 px-4 py-3">
         <Link
           href="/"
-          className="inline-flex items-center gap-2 text-sm text-orange-700 hover:text-orange-900 font-medium transition-colors"
+          className="inline-flex items-center gap-2 text-sm font-medium text-sky-700 transition-colors hover:text-slate-900"
         >
           ← Back to Home
         </Link>
@@ -46,31 +46,31 @@ export default function MembershipFormPage() {
       </div>
 
       {/* Page wrapper — centres the A4 card on screen */}
-      <div className="min-h-screen bg-gray-100 py-8 px-4 print:bg-white print:py-0">
-        <div className="print-page mx-auto bg-white shadow-lg rounded-sm border border-gray-200 max-w-[794px] p-10 sm:p-12 print:max-w-none print:shadow-none print:border-none print:rounded-none">
+      <div className="min-h-screen bg-[radial-gradient(circle_at_top,_rgba(56,189,248,0.16),_transparent_20rem),linear-gradient(180deg,#eff6ff_0%,#f8fafc_55%,#eef2ff_100%)] px-4 py-8 print:bg-white print:py-0">
+        <div className="print-page mx-auto max-w-[794px] rounded-sm border border-sky-100 bg-white p-10 shadow-[0_24px_60px_-32px_rgba(15,23,42,0.28)] sm:p-12 print:max-w-none print:rounded-none print:border-none print:shadow-none">
 
           {/* ── Header ─────────────────────────────────────────── */}
-          <header className="text-center border-b-2 border-orange-600 pb-6 mb-8">
+          <header className="mb-8 border-b-2 border-sky-600 pb-6 text-center">
             <div className="text-3xl mb-2" aria-hidden="true">🪔</div>
-            <h1 className="text-xl sm:text-2xl font-extrabold text-gray-900 uppercase tracking-wide leading-tight mb-1">
+            <h1 className="mb-1 text-xl font-extrabold uppercase leading-tight tracking-wide text-slate-900 sm:text-2xl">
               Deshapriya Park Sarbojanin Durgotsav
             </h1>
-            <p className="text-sm text-gray-600">
+            <p className="text-sm text-slate-600">
               Deshapriya Park, Tilak Road / 34A Manoharpukur Road, Ballygunge, Kolkata — 700029
             </p>
-            <p className="text-xs text-gray-400 mt-1">
+            <p className="mt-1 text-xs text-slate-400">
               Opposite Priya Cinema, near Rash Behari Avenue &nbsp;|&nbsp; Est. 1938
             </p>
-            <div className="mt-5 inline-block px-6 py-2 border-2 border-orange-600 rounded">
-              <span className="text-base sm:text-lg font-bold text-orange-700 uppercase tracking-widest">
+            <div className="mt-5 inline-block rounded border-2 border-sky-600 px-6 py-2">
+              <span className="text-base font-bold uppercase tracking-widest text-sky-700 sm:text-lg">
                 Membership Application Form
               </span>
             </div>
           </header>
 
           {/* ── Instructions Block ──────────────────────────────── */}
-          <section className="mb-8 rounded-lg border border-orange-200 bg-orange-50 p-5 text-sm text-gray-700 space-y-2 print:bg-white print:border print:border-gray-300">
-            <h2 className="font-bold text-gray-900 text-base mb-3 uppercase tracking-wide">
+          <section className="mb-8 space-y-2 rounded-lg border border-sky-200 bg-sky-50 p-5 text-sm text-slate-700 print:border print:border-gray-300 print:bg-white">
+            <h2 className="mb-3 text-base font-bold uppercase tracking-wide text-slate-900">
               Instructions
             </h2>
             <ol className="list-decimal list-inside space-y-1.5 text-sm leading-relaxed">
@@ -102,34 +102,34 @@ export default function MembershipFormPage() {
 
           {/* ── Primary Member Details ──────────────────────────── */}
           <section className="mb-8">
-            <h2 className="font-bold text-gray-900 text-base mb-5 pb-1 border-b border-gray-300 uppercase tracking-wide">
+            <h2 className="mb-5 border-b border-slate-300 pb-1 text-base font-bold uppercase tracking-wide text-slate-900">
               Primary Member Details
             </h2>
 
-            <div className="space-y-6 text-sm text-gray-700">
+            <div className="space-y-6 text-sm text-slate-700">
               <FormField label="Full Name (as per ID proof)" wide />
               <FormField label="WhatsApp Number" />
               <FormField label="Email Address" />
               <div>
                 <div className="font-medium mb-1">
-                  Address <span className="text-gray-400 font-normal">(full residential address)</span>
+                  Address <span className="font-normal text-slate-400">(full residential address)</span>
                 </div>
-                <div className="border-b border-gray-400 mb-3 mt-4 h-0" />
-                <div className="border-b border-gray-400 mb-3 h-0" />
-                <div className="border-b border-gray-400 h-0" />
+                <div className="mb-3 mt-4 h-0 border-b border-slate-400" />
+                <div className="mb-3 h-0 border-b border-slate-400" />
+                <div className="h-0 border-b border-slate-400" />
               </div>
             </div>
           </section>
 
           {/* ── Membership Type ─────────────────────────────────── */}
           <section className="mb-8">
-            <h2 className="font-bold text-gray-900 text-base mb-5 pb-1 border-b border-gray-300 uppercase tracking-wide">
+            <h2 className="mb-5 border-b border-slate-300 pb-1 text-base font-bold uppercase tracking-wide text-slate-900">
               Membership Type Selection
             </h2>
-            <p className="text-sm text-gray-600 mb-4">
+            <p className="mb-4 text-sm text-slate-600">
               Please tick (&nbsp;&#10003;&nbsp;) your preferred membership period:
             </p>
-            <div className="flex flex-wrap gap-8 text-sm text-gray-700">
+            <div className="flex flex-wrap gap-8 text-sm text-slate-700">
               <CheckboxField label="Monthly — ₹250 / month" />
               <CheckboxField label="Half-yearly — ₹1,500 / 6 months" />
               <CheckboxField label="Annual — ₹3,000 / year" />
@@ -138,19 +138,19 @@ export default function MembershipFormPage() {
 
           {/* ── Sub-Members ─────────────────────────────────────── */}
           <section className="mb-8">
-            <h2 className="font-bold text-gray-900 text-base mb-2 pb-1 border-b border-gray-300 uppercase tracking-wide">
+            <h2 className="mb-2 border-b border-slate-300 pb-1 text-base font-bold uppercase tracking-wide text-slate-900">
               Sub-Members
             </h2>
-            <p className="text-sm text-gray-500 mb-5">
+            <p className="mb-5 text-sm text-slate-500">
               Up to 3 sub-members (family members) may be added. No additional fee required for sub-members.
             </p>
 
             {[1, 2, 3].map((n) => (
               <div key={n} className="mb-7">
-                <div className="font-semibold text-gray-700 text-sm mb-3">
+                <div className="mb-3 text-sm font-semibold text-slate-700">
                   Sub-member {n}
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 text-sm text-gray-700">
+                <div className="grid grid-cols-1 gap-6 text-sm text-slate-700 sm:grid-cols-3">
                   <FormField label="Full Name" />
                   <FormField label="WhatsApp Number" />
                   <FormField label="Relation to Primary Member" />
@@ -160,11 +160,11 @@ export default function MembershipFormPage() {
           </section>
 
           {/* ── Declaration ─────────────────────────────────────── */}
-          <section className="mb-8 rounded-lg border border-gray-200 bg-gray-50 p-5 print:bg-white print:border print:border-gray-300">
-            <h2 className="font-bold text-gray-900 text-base mb-3 uppercase tracking-wide">
+          <section className="mb-8 rounded-lg border border-slate-200 bg-slate-50/80 p-5 print:border print:border-gray-300 print:bg-white">
+            <h2 className="mb-3 text-base font-bold uppercase tracking-wide text-slate-900">
               Declaration
             </h2>
-            <p className="text-sm text-gray-700 leading-relaxed">
+            <p className="text-sm leading-relaxed text-slate-700">
               I, the undersigned, hereby apply for membership of{" "}
               <strong>Deshapriya Park Sarbojanin Durgotsav</strong> and declare that the
               information furnished above is true and correct to the best of my knowledge. I
@@ -175,22 +175,22 @@ export default function MembershipFormPage() {
 
           {/* ── Signature Line ──────────────────────────────────── */}
           <section>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-10 text-sm text-gray-700">
+            <div className="grid grid-cols-1 gap-10 text-sm text-slate-700 sm:grid-cols-2">
               <div>
                 <div className="mb-1 font-medium">Date</div>
                 <div className="border-b border-gray-400 mt-8 mb-1" />
-                <div className="text-xs text-gray-400">DD / MM / YYYY</div>
+                <div className="text-xs text-slate-400">DD / MM / YYYY</div>
               </div>
               <div>
                 <div className="mb-1 font-medium">Signature of Applicant</div>
                 <div className="border-b border-gray-400 mt-8 mb-1" />
-                <div className="text-xs text-gray-400">&nbsp;</div>
+                <div className="text-xs text-slate-400">&nbsp;</div>
               </div>
             </div>
 
             {/* Office use only block */}
-            <div className="mt-10 border-2 border-dashed border-gray-300 rounded-lg p-4 text-sm text-gray-500">
-              <p className="font-semibold text-gray-600 mb-3 uppercase tracking-wide text-xs">
+            <div className="mt-10 rounded-lg border-2 border-dashed border-slate-300 p-4 text-sm text-slate-500">
+              <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-600">
                 For Office Use Only
               </p>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
@@ -211,7 +211,7 @@ export default function MembershipFormPage() {
           </section>
 
           {/* ── Footer note ─────────────────────────────────────── */}
-          <div className="mt-8 text-center text-xs text-gray-400 border-t border-gray-100 pt-4">
+          <div className="mt-8 border-t border-slate-100 pt-4 text-center text-xs text-slate-400">
             Deshapriya Park Sarbojanin Durgotsav · Est. 1938 · Ballygunge, Kolkata 700029 · +91 94330 82863
           </div>
         </div>
@@ -220,7 +220,7 @@ export default function MembershipFormPage() {
         <div className="no-print mt-6 text-center">
           <Link
             href="/"
-            className="text-sm text-orange-600 hover:underline font-medium"
+            className="text-sm font-medium text-sky-700 hover:underline"
           >
             ← Return to Home
           </Link>
@@ -237,7 +237,7 @@ function FormField({ label, wide = false }: { label: string; wide?: boolean }) {
   return (
     <div className={wide ? "col-span-full" : ""}>
       <div className="font-medium mb-1">{label}</div>
-      <div className="border-b border-gray-400 mt-5" />
+      <div className="mt-5 border-b border-slate-400" />
     </div>
   );
 }
@@ -247,7 +247,7 @@ function CheckboxField({ label }: { label: string }) {
   return (
     <label className="flex items-center gap-2 cursor-default">
       <span
-        className="inline-block w-4 h-4 border-2 border-gray-500 rounded-sm flex-shrink-0"
+        className="inline-block h-4 w-4 flex-shrink-0 rounded-sm border-2 border-slate-500"
         aria-hidden="true"
       />
       <span>{label}</span>

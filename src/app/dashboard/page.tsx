@@ -1,62 +1,36 @@
 "use client";
 
-/**
- * Dashboard Home — /dashboard
- *
- * Admin/Operator view:
- *   - 4 summary cards: Total Members, Total Income, Net Balance, Pending Approvals
- *   - Quick actions row: Add Member, Record Payment, Generate Sponsor Link
- *   - Recent Activity (last 10 entries)
- *   - Recent Audit (last 10 entries)
- *
- * Member view:
- *   - Membership Status card (status, type, expiry, days remaining)
- *   - Payment Summary (total paid, last payment date)
- *   - Sub-Members list
- *   - Pay/Renew membership quick action
- *
- * All amounts formatted as ₹X,XXX.XX
- * All dates in DD/MM/YYYY format
- * Single GET /api/dashboard/stats call for all data
- */
-
 import { useEffect, useState } from "react";
-import { useSession } from "next-auth/react";
 import Link from "next/link";
+import { useSession } from "next-auth/react";
 import {
-  UsersIcon,
-  IndianRupeeIcon,
-  TrendingUpIcon,
-  TrendingDownIcon,
-  ClockIcon,
-  CheckCircleIcon,
-  RefreshCwIcon,
-  UserPlusIcon,
-  ReceiptIcon,
-  LinkIcon,
-  BuildingIcon,
   AlertCircleIcon,
+  ArrowRightIcon,
+  BuildingIcon,
   CalendarIcon,
+  CheckCircleIcon,
+  ClockIcon,
+  IndianRupeeIcon,
+  LinkIcon,
+  ReceiptIcon,
+  RefreshCwIcon,
+  TrendingDownIcon,
+  TrendingUpIcon,
+  UserPlusIcon,
+  UsersIcon,
   WalletIcon,
-  ActivityIcon,
-  ShieldCheckIcon,
 } from "lucide-react";
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import {
   formatCurrency,
   formatDate,
   formatDateTime,
-  formatMembershipType,
   formatMembershipStatus,
+  formatMembershipType,
 } from "@/lib/utils";
-
-// ---------------------------------------------------------------------------
-// Types
-// ---------------------------------------------------------------------------
 
 interface AdminStats {
   members: { total: number; active: number; pending: number; expired: number };
@@ -99,9 +73,39 @@ interface MemberStats {
   }>;
 }
 
-// ---------------------------------------------------------------------------
-// Local helpers (non-formatting)
-// ---------------------------------------------------------------------------
+/** Category badge color — matches the audit-log page convention (emerald = income, rose = expense) */
+function auditCategoryBadgeClass(snapshot: Record<string, unknown>): string {
+  return snapshot.type === "CASH_IN"
+    ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+    : "border-rose-200 bg-rose-50 text-rose-700";
+}
+
+/** Amount text color — green for income, red for expense */
+function auditAmountClass(snapshot: Record<string, unknown>): string {
+  return snapshot.type === "CASH_IN" ? "text-emerald-700" : "text-rose-700";
+}
+
+/** Human-readable category label */
+function formatCategoryLabel(raw: string): string {
+  switch (raw) {
+    case "MEMBERSHIP_FEE":
+      return "Membership Fee";
+    case "APPLICATION_FEE":
+      return "Application Fee";
+    case "SPONSORSHIP":
+      return "Sponsorship";
+    case "EXPENSE":
+      return "Expense";
+    case "OTHER":
+      return "Other";
+    default:
+      return raw
+        .toLowerCase()
+        .split("_")
+        .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+        .join(" ");
+  }
+}
 
 function membershipStatusVariant(
   status: string
@@ -134,299 +138,359 @@ function roleVariant(
   }
 }
 
-// formatMembershipType is imported from @/lib/utils
+function StatCard({
+  label,
+  value,
+  note,
+  icon: Icon,
+  tone = "blue",
+}: {
+  label: string;
+  value: string;
+  note: string;
+  icon: React.ComponentType<{ className?: string }>;
+  tone?: "blue" | "green" | "red" | "amber";
+}) {
+  const toneClasses = {
+    blue: "bg-blue-50 text-blue-600",
+    green: "bg-emerald-50 text-emerald-600",
+    red: "bg-rose-50 text-rose-600",
+    amber: "bg-amber-50 text-amber-600",
+  }[tone];
 
-// ---------------------------------------------------------------------------
-// Admin / Operator dashboard
-// ---------------------------------------------------------------------------
+  return (
+    <Card className="overflow-hidden">
+      <CardContent className="p-5">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">
+              {label}
+            </p>
+            <p className="mt-4 text-3xl font-semibold tracking-tight text-slate-900">
+              {value}
+            </p>
+            <p className="mt-2 text-sm text-muted-foreground">{note}</p>
+          </div>
+          <div className={`flex h-12 w-12 items-center justify-center rounded-2xl ${toneClasses}`}>
+            <Icon className="h-5 w-5" />
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
 
-function AdminDashboard({ stats }: { stats: AdminStats }) {
-  const role = useSession().data?.user?.role;
+function ActionCard({
+  href,
+  title,
+  description,
+  icon: Icon,
+}: {
+  href: string;
+  title: string;
+  description: string;
+  icon: React.ComponentType<{ className?: string }>;
+}) {
+  return (
+    <Link
+      href={href}
+      className="group rounded-[1.5rem] border border-white/70 bg-white/80 p-5 shadow-[0_24px_60px_-32px_rgba(15,23,42,0.35)] transition-all duration-200 hover:-translate-y-1 hover:border-sky-200 hover:bg-white"
+    >
+      <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-950 text-white">
+        <Icon className="h-5 w-5" />
+      </div>
+      <div className="mt-5 flex items-start justify-between gap-3">
+        <div>
+          <h3 className="text-base font-semibold text-slate-900">{title}</h3>
+          <p className="mt-1 text-sm leading-6 text-muted-foreground">{description}</p>
+        </div>
+        <ArrowRightIcon className="mt-1 h-4 w-4 shrink-0 text-slate-400 transition-transform group-hover:translate-x-1 group-hover:text-slate-900" />
+      </div>
+    </Link>
+  );
+}
+
+function PanelHeader({
+  eyebrow,
+  title,
+  description,
+  actionHref,
+}: {
+  eyebrow: string;
+  title: string;
+  description: string;
+  actionHref?: string;
+}) {
+  return (
+    <div className="mb-5 flex items-end justify-between gap-3">
+      <div>
+        <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">
+          {eyebrow}
+        </p>
+        <h2 className="mt-2 text-xl font-semibold tracking-tight text-slate-900">
+          {title}
+        </h2>
+        <p className="mt-1 text-sm text-muted-foreground">{description}</p>
+      </div>
+      {actionHref ? (
+        <Button asChild variant="outline" size="sm">
+          <Link href={actionHref}>View all</Link>
+        </Button>
+      ) : null}
+    </div>
+  );
+}
+
+function AdminDashboard({ stats, role }: { stats: AdminStats; role: string }) {
   const isAdmin = role === "ADMIN";
 
   return (
     <div className="space-y-6">
-      {/* Summary cards */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
-        {/* Total Members */}
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Total Members
-            </CardTitle>
-            <UsersIcon className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.members.total}</div>
-            <div className="mt-1 flex gap-3 text-xs text-muted-foreground">
-              <span className="text-green-600 dark:text-green-400">
-                {stats.members.active} active
-              </span>
-              <span className="text-yellow-600 dark:text-yellow-400">
-                {stats.members.pending} pending
-              </span>
-              <span className="text-red-600 dark:text-red-400">
-                {stats.members.expired} expired
-              </span>
-            </div>
-          </CardContent>
-        </Card>
+      <Card className="overflow-hidden border-none bg-[radial-gradient(circle_at_top_left,_rgba(96,165,250,0.32),_transparent_20rem),linear-gradient(135deg,#0f172a_0%,#172554_52%,#0f172a_100%)] text-white shadow-[0_32px_80px_-36px_rgba(15,23,42,0.9)]">
+        <CardContent className="p-6 md:p-8">
+          <div className="grid gap-8 xl:grid-cols-[1.3fr_0.7fr]">
+            <div>
+              <Badge variant="outline" className="border-white/15 bg-white/10 text-sky-100">
+                Live overview
+              </Badge>
+              <h2 className="mt-2 max-w-2xl text-xl font-semibold tracking-tight md:text-2xl">
+                Deshapriya Park operations, all in one place.
+              </h2>
+              <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-300">
+                From member onboarding to payment collections and sponsorship
+                tracking, your daily priorities are one click away. Use the
+                quick actions below to get started.
+              </p>
 
-        {/* Total Income */}
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Total Income
-            </CardTitle>
-            <TrendingUpIcon className="h-4 w-4 text-green-600 dark:text-green-400" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-green-600 dark:text-green-400">
-              {formatCurrency(stats.financial.totalIncome)}
-            </div>
-            <div className="mt-1 text-xs text-muted-foreground">
-              Approved cash in
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Net Expenses */}
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Net Expenses
-            </CardTitle>
-            <TrendingDownIcon className="h-4 w-4 text-red-600 dark:text-red-400" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-red-600 dark:text-red-400">
-              {formatCurrency(stats.financial.totalExpenses)}
-            </div>
-            <div className="mt-1 text-xs text-muted-foreground">
-              Approved cash out
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Net Balance */}
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Net Balance
-            </CardTitle>
-            <IndianRupeeIcon className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div
-              className={`text-2xl font-bold ${
-                stats.financial.netBalance >= 0
-                  ? "text-green-600 dark:text-green-400"
-                  : "text-red-600 dark:text-red-400"
-              }`}
-            >
-              {formatCurrency(stats.financial.netBalance)}
-            </div>
-            <div className="mt-1 text-xs text-muted-foreground">
-              Income minus expenses
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Pending Approvals — admin only */}
-        {isAdmin ? (
-          <Card className={stats.approvals.pending > 0 ? "border-yellow-400" : ""}>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                Pending Approvals
-              </CardTitle>
-              <ClockIcon
-                className={`h-4 w-4 ${
-                  stats.approvals.pending > 0
-                    ? "text-yellow-600 dark:text-yellow-400"
-                    : "text-muted-foreground"
-                }`}
-              />
-            </CardHeader>
-            <CardContent>
-              <div
-                className={`text-2xl font-bold ${
-                  stats.approvals.pending > 0
-                    ? "text-yellow-600 dark:text-yellow-400"
-                    : ""
-                }`}
-              >
-                {stats.approvals.pending}
+              <div className="mt-8 grid gap-3 sm:grid-cols-3">
+                <div className="rounded-3xl border border-white/10 bg-white/10 p-4">
+                  <p className="text-xs uppercase tracking-[0.22em] text-slate-300">
+                    Active members
+                  </p>
+                  <p className="mt-3 text-2xl font-semibold">{stats.members.active}</p>
+                </div>
+                <div className="rounded-3xl border border-white/10 bg-white/10 p-4">
+                  <p className="text-xs uppercase tracking-[0.22em] text-slate-300">
+                    Pending approvals
+                  </p>
+                  <p className="mt-3 text-2xl font-semibold">{stats.approvals.pending}</p>
+                </div>
+                <div className="rounded-3xl border border-white/10 bg-white/10 p-4">
+                  <p className="text-xs uppercase tracking-[0.22em] text-slate-300">
+                    Net position
+                  </p>
+                  <p className="mt-3 text-2xl font-semibold">
+                    {formatCurrency(stats.financial.netBalance)}
+                  </p>
+                </div>
               </div>
-              <div className="mt-1 text-xs">
-                {stats.approvals.pending > 0 ? (
-                  <Link
-                    href="/dashboard/approvals"
-                    className="text-yellow-600 hover:underline dark:text-yellow-400"
-                  >
-                    Review approvals
-                  </Link>
-                ) : (
-                  <span className="text-muted-foreground">All clear</span>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        ) : (
-          /* Operator: show pending financial approvals total instead */
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                Pending Payments
-              </CardTitle>
-              <WalletIcon className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-yellow-600 dark:text-yellow-400">
-                {formatCurrency(stats.financial.pendingApprovals)}
-              </div>
-              <div className="mt-1 text-xs text-muted-foreground">
-                Awaiting approval
-              </div>
-            </CardContent>
-          </Card>
-        )}
-      </div>
+            </div>
 
-      {/* Quick Actions */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-sm font-semibold">Quick Actions</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex flex-wrap gap-3">
-            <Button asChild size="sm" variant="outline">
-              <Link href="/dashboard/members">
-                <UserPlusIcon className="mr-2 h-4 w-4" />
-                Add Member
-              </Link>
-            </Button>
-            <Button asChild size="sm" variant="outline">
-              <Link href="/dashboard/cash">
-                <ReceiptIcon className="mr-2 h-4 w-4" />
-                Record Payment
-              </Link>
-            </Button>
-            <Button asChild size="sm" variant="outline">
-              <Link href="/dashboard/sponsorship">
-                <BuildingIcon className="mr-2 h-4 w-4" />
-                Add Sponsor
-              </Link>
-            </Button>
-            <Button asChild size="sm" variant="outline">
-              <Link href="/dashboard/sponsorship">
-                <LinkIcon className="mr-2 h-4 w-4" />
-                Generate Sponsor Link
-              </Link>
-            </Button>
+            <div className="rounded-[1.75rem] border border-white/10 bg-white/10 p-5 backdrop-blur-sm">
+              <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-300">
+                Operations pulse
+              </p>
+              <div className="mt-5 space-y-4">
+                <div className="rounded-3xl bg-white/10 p-4">
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="text-sm text-slate-300">Collections</span>
+                    <TrendingUpIcon className="h-4 w-4 text-emerald-300" />
+                  </div>
+                  <p className="mt-3 text-2xl font-semibold">
+                    {formatCurrency(stats.financial.totalIncome)}
+                  </p>
+                </div>
+                <div className="rounded-3xl bg-white/10 p-4">
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="text-sm text-slate-300">Expenses</span>
+                    <TrendingDownIcon className="h-4 w-4 text-rose-300" />
+                  </div>
+                  <p className="mt-3 text-2xl font-semibold">
+                    {formatCurrency(stats.financial.totalExpenses)}
+                  </p>
+                </div>
+                <div className="rounded-3xl bg-white/10 p-4">
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="text-sm text-slate-300">
+                      {isAdmin ? "Approvals waiting" : "Pending payments"}
+                    </span>
+                    <ClockIcon className="h-4 w-4 text-amber-300" />
+                  </div>
+                  <p className="mt-3 text-2xl font-semibold">
+                    {isAdmin
+                      ? stats.approvals.pending
+                      : formatCurrency(stats.financial.pendingApprovals)}
+                  </p>
+                </div>
+              </div>
+            </div>
           </div>
         </CardContent>
       </Card>
 
-      {/* Recent Activity + Recent Audit */}
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        {/* Recent Activity */}
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <StatCard
+          label="Members"
+          value={String(stats.members.total)}
+          note={`${stats.members.active} active, ${stats.members.pending} pending, ${stats.members.expired} expired`}
+          icon={UsersIcon}
+          tone="blue"
+        />
+        <StatCard
+          label="Income"
+          value={formatCurrency(stats.financial.totalIncome)}
+          note="Approved cash in across all payment sources."
+          icon={TrendingUpIcon}
+          tone="green"
+        />
+        <StatCard
+          label="Expenses"
+          value={formatCurrency(stats.financial.totalExpenses)}
+          note="Approved outgoing cash entries."
+          icon={TrendingDownIcon}
+          tone="red"
+        />
+        <StatCard
+          label={isAdmin ? "Pending approvals" : "Pending payments"}
+          value={
+            isAdmin
+              ? String(stats.approvals.pending)
+              : formatCurrency(stats.financial.pendingApprovals)
+          }
+          note={
+            isAdmin
+              ? "Requests waiting for an admin decision."
+              : "Collections awaiting admin approval."
+          }
+          icon={ClockIcon}
+          tone="amber"
+        />
+      </div>
+
+      <div className="rounded-[1.75rem] border border-white/70 bg-white/80 p-5 shadow-[0_24px_60px_-32px_rgba(15,23,42,0.35)] md:p-6">
+        <PanelHeader
+          eyebrow="Actions"
+          title="Quick actions"
+          description="Jump straight into the operational flows used most often."
+        />
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          <ActionCard
+            href="/dashboard/members"
+            title="Add member"
+            description="Create or review member profiles and update membership data."
+            icon={UserPlusIcon}
+          />
+          <ActionCard
+            href="/dashboard/cash"
+            title="Record payment"
+            description="Enter new payment activity and keep collections moving."
+            icon={ReceiptIcon}
+          />
+          <ActionCard
+            href="/dashboard/sponsorship"
+            title="Add sponsor"
+            description="Track sponsor information and manage contribution records."
+            icon={BuildingIcon}
+          />
+          <ActionCard
+            href="/dashboard/sponsorship"
+            title="Generate sponsor link"
+            description="Create a payment-ready sponsor link for external contributors."
+            icon={LinkIcon}
+          />
+        </div>
+      </div>
+
+      <div className="grid gap-6 xl:grid-cols-2">
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-semibold">
-              Recent Activity
-            </CardTitle>
-            <ActivityIcon className="h-4 w-4 text-muted-foreground" />
+          <CardHeader>
+            <PanelHeader
+              eyebrow="Feed"
+              title="Recent activity"
+              description="The latest actions taken across the dashboard."
+              actionHref="/dashboard/activity-log"
+            />
           </CardHeader>
-          <CardContent className="p-0">
+          <CardContent className="space-y-3">
             {stats.recentActivity.length === 0 ? (
-              <p className="px-6 py-4 text-sm text-muted-foreground">
+              <p className="rounded-3xl bg-slate-50 px-4 py-6 text-sm text-muted-foreground">
                 No activity yet.
               </p>
             ) : (
-              <ul className="divide-y">
-                {stats.recentActivity.map((entry) => (
-                  <li key={entry.id} className="px-6 py-3">
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm">{entry.description}</p>
-                        <p className="mt-0.5 flex items-center gap-1 text-xs text-muted-foreground">
-                          <span>{entry.user.name}</span>
-                          <Badge
-                            variant={roleVariant(entry.user.role)}
-                            className="px-1 py-0 text-[10px]"
-                          >
-                            {entry.user.role}
-                          </Badge>
-                        </p>
+              stats.recentActivity.map((entry) => (
+                <div
+                  key={entry.id}
+                  className="rounded-3xl border border-slate-100 bg-slate-50/80 p-4"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-slate-900">
+                        {entry.description}
+                      </p>
+                      <div className="mt-2 flex flex-wrap items-center gap-2">
+                        <span className="text-xs text-muted-foreground">{entry.user.name}</span>
+                        <Badge variant={roleVariant(entry.user.role)}>{entry.user.role}</Badge>
                       </div>
-                      <span className="shrink-0 text-xs text-muted-foreground">
-                        {formatDateTime(entry.createdAt)}
-                      </span>
                     </div>
-                  </li>
-                ))}
-              </ul>
+                    <span className="shrink-0 text-xs text-muted-foreground">
+                      {formatDateTime(entry.createdAt)}
+                    </span>
+                  </div>
+                </div>
+              ))
             )}
-            <Separator />
-            <div className="px-6 py-3">
-              <Button asChild variant="ghost" size="sm" className="h-7 text-xs">
-                <Link href="/dashboard/activity-log">View all</Link>
-              </Button>
-            </div>
           </CardContent>
         </Card>
 
-        {/* Recent Audit */}
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-semibold">
-              Recent Audit Entries
-            </CardTitle>
-            <ShieldCheckIcon className="h-4 w-4 text-muted-foreground" />
+          <CardHeader>
+            <PanelHeader
+              eyebrow="Audit"
+              title="Recent audit entries"
+              description="Financial actions with who, what, and when."
+              actionHref="/dashboard/audit-log"
+            />
           </CardHeader>
-          <CardContent className="p-0">
+          <CardContent className="space-y-3">
             {stats.recentAudit.length === 0 ? (
-              <p className="px-6 py-4 text-sm text-muted-foreground">
+              <p className="rounded-3xl bg-slate-50 px-4 py-6 text-sm text-muted-foreground">
                 No audit entries yet.
               </p>
             ) : (
-              <ul className="divide-y">
-                {stats.recentAudit.map((entry) => (
-                  <li key={entry.id} className="px-6 py-3">
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-1">
-                          <Badge variant="outline" className="text-[10px]">
-                            {String(entry.transactionSnapshot.category ?? "Approved")}
-                          </Badge>
-                          <span className="font-mono text-xs">
-                            {formatCurrency(Number(entry.transactionSnapshot.amount ?? 0))}
-                          </span>
-                        </div>
-                        <p className="mt-0.5 flex items-center gap-1 text-xs text-muted-foreground">
-                          <span>{entry.performedBy.name}</span>
-                          <Badge
-                            variant={roleVariant(entry.performedBy.role)}
-                            className="px-1 py-0 text-[10px]"
-                          >
-                            {entry.performedBy.role}
-                          </Badge>
-                        </p>
+              stats.recentAudit.map((entry) => (
+                <div
+                  key={entry.id}
+                  className="rounded-3xl border border-slate-100 bg-slate-50/80 p-4"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Badge
+                          variant="outline"
+                          className={auditCategoryBadgeClass(entry.transactionSnapshot)}
+                        >
+                          {formatCategoryLabel(String(entry.transactionSnapshot.category ?? "Approved"))}
+                        </Badge>
+                        <span className={`text-sm font-semibold ${auditAmountClass(entry.transactionSnapshot)}`}>
+                          {formatCurrency(Number(entry.transactionSnapshot.amount ?? 0))}
+                        </span>
                       </div>
-                      <span className="shrink-0 text-xs text-muted-foreground">
-                        {formatDateTime(entry.createdAt)}
-                      </span>
+                      <div className="mt-2 flex flex-wrap items-center gap-2">
+                        <span className="text-xs text-muted-foreground">
+                          {entry.performedBy.name}
+                        </span>
+                        <Badge variant={roleVariant(entry.performedBy.role)}>
+                          {entry.performedBy.role}
+                        </Badge>
+                      </div>
                     </div>
-                  </li>
-                ))}
-              </ul>
+                    <span className="shrink-0 text-xs text-muted-foreground">
+                      {formatDateTime(entry.createdAt)}
+                    </span>
+                  </div>
+                </div>
+              ))
             )}
-            <Separator />
-            <div className="px-6 py-3">
-              <Button asChild variant="ghost" size="sm" className="h-7 text-xs">
-                <Link href="/dashboard/audit-log">View all</Link>
-              </Button>
-            </div>
           </CardContent>
         </Card>
       </div>
@@ -434,116 +498,147 @@ function AdminDashboard({ stats }: { stats: AdminStats }) {
   );
 }
 
-// ---------------------------------------------------------------------------
-// Member dashboard
-// ---------------------------------------------------------------------------
-
-function MemberDashboard({ stats }: { stats: MemberStats }) {
+function MemberDashboard({
+  stats,
+  memberName,
+}: {
+  stats: MemberStats;
+  memberName?: string | null;
+}) {
   const daysLeft = stats.membership.daysLeft;
 
-  let expiryColor = "text-green-600 dark:text-green-400";
+  let expiryTone = "text-emerald-600";
   if (daysLeft !== null) {
-    if (daysLeft <= 0) expiryColor = "text-red-600 dark:text-red-400";
-    else if (daysLeft <= 15)
-      expiryColor = "text-yellow-600 dark:text-yellow-400";
+    if (daysLeft <= 0) expiryTone = "text-rose-600";
+    else if (daysLeft <= 15) expiryTone = "text-amber-600";
   }
 
   return (
     <div className="space-y-6">
-      {/* Membership Status Card */}
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between pb-2">
-          <CardTitle className="text-base font-semibold">
-            My Membership
-          </CardTitle>
-          <CheckCircleIcon className="h-5 w-5 text-muted-foreground" />
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+      <Card className="overflow-hidden border-none bg-[radial-gradient(circle_at_top_left,_rgba(125,211,252,0.28),_transparent_18rem),linear-gradient(135deg,#e0f2fe_0%,#eff6ff_56%,#ffffff_100%)]">
+        <CardContent className="p-6 md:p-8">
+          <div className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
             <div>
-              <p className="text-xs text-muted-foreground">Status</p>
-              <Badge
-                variant={membershipStatusVariant(stats.membership.status)}
-                className="mt-1"
-              >
-                {formatMembershipStatus(stats.membership.status)}
+              <Badge variant="outline" className="border-sky-200 bg-white/70 text-sky-700">
+                Member area
               </Badge>
-            </div>
-            <div>
-              <p className="text-xs text-muted-foreground">Type</p>
-              <p className="mt-1 text-sm font-medium">
-                {formatMembershipType(stats.membership.type)}
+              <h2 className="mt-2 text-xl font-semibold tracking-tight text-slate-900 md:text-2xl">
+                Namaskar{memberName ? `, ${memberName}` : ""}. Here is your overview.
+              </h2>
+              <p className="mt-3 max-w-2xl text-sm leading-6 text-muted-foreground">
+                Check your membership status, view payment history, and stay on
+                top of upcoming renewals — everything in one place.
               </p>
             </div>
-            <div>
-              <p className="text-xs text-muted-foreground">Expires</p>
-              <p className="mt-1 text-sm font-medium">
-                {formatDate(stats.membership.expiry)}
+
+            <div className="rounded-[1.75rem] border border-white/70 bg-white/75 p-5">
+              <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">
+                Current status
               </p>
-            </div>
-            <div>
-              <p className="text-xs text-muted-foreground">Days Remaining</p>
-              <p className={`mt-1 text-sm font-bold ${expiryColor}`}>
-                {daysLeft !== null
-                  ? daysLeft <= 0
-                    ? "Expired"
-                    : `${daysLeft} days`
-                  : "—"}
-              </p>
+              <div className="mt-4 flex flex-wrap items-center gap-3">
+                <Badge variant={membershipStatusVariant(stats.membership.status)}>
+                  {formatMembershipStatus(stats.membership.status)}
+                </Badge>
+                <span className="text-sm text-muted-foreground">
+                  {formatMembershipType(stats.membership.type)}
+                </span>
+              </div>
+              <div className="mt-6 grid gap-3 sm:grid-cols-2">
+                <div className="rounded-3xl bg-slate-50 p-4">
+                  <p className="text-xs uppercase tracking-[0.18em] text-slate-400">
+                    Expires on
+                  </p>
+                  <p className="mt-2 text-lg font-semibold text-slate-900">
+                    {formatDate(stats.membership.expiry)}
+                  </p>
+                </div>
+                <div className="rounded-3xl bg-slate-50 p-4">
+                  <p className="text-xs uppercase tracking-[0.18em] text-slate-400">
+                    Days remaining
+                  </p>
+                  <p className={`mt-2 text-lg font-semibold ${expiryTone}`}>
+                    {daysLeft !== null ? (daysLeft <= 0 ? "Expired" : `${daysLeft} days`) : "—"}
+                  </p>
+                </div>
+              </div>
             </div>
           </div>
-
-          {daysLeft !== null && daysLeft <= 15 && daysLeft > 0 && (
-            <div className="mt-4 flex items-center gap-2 rounded-md border border-yellow-300 bg-yellow-50 px-3 py-2 text-sm text-yellow-800 dark:border-yellow-700 dark:bg-yellow-900/20 dark:text-yellow-300">
-              <AlertCircleIcon className="h-4 w-4 shrink-0" />
-              Your membership expires in {daysLeft} day
-              {daysLeft !== 1 ? "s" : ""}. Renew now to avoid interruption.
-            </div>
-          )}
-
-          {(daysLeft === null || daysLeft <= 0) &&
-            stats.membership.status !== "ACTIVE" && (
-              <div className="mt-4 flex items-center gap-2 rounded-md border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-800 dark:border-red-700 dark:bg-red-900/20 dark:text-red-300">
-                <AlertCircleIcon className="h-4 w-4 shrink-0" />
-                Your membership has expired. Renew to regain full access.
-              </div>
-            )}
         </CardContent>
       </Card>
 
-      {/* Payment Summary + Quick Action */}
-      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Payment Summary
-            </CardTitle>
-            <WalletIcon className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-green-600 dark:text-green-400">
-              {formatCurrency(stats.payments.total)}
-            </div>
-            <div className="mt-1 text-xs text-muted-foreground">
-              Total paid to date
-            </div>
-            {stats.payments.lastPayment && (
-              <div className="mt-2 flex items-center gap-1 text-xs text-muted-foreground">
-                <CalendarIcon className="h-3 w-3" />
-                Last payment: {formatDate(stats.payments.lastPayment)}
-              </div>
-            )}
-          </CardContent>
-        </Card>
+      {(daysLeft !== null && daysLeft <= 15) || stats.membership.status !== "ACTIVE" ? (
+        <div
+          className={`rounded-[1.5rem] border px-4 py-4 text-sm ${
+            daysLeft !== null && daysLeft > 0
+              ? "border-amber-200 bg-amber-50 text-amber-800"
+              : "border-rose-200 bg-rose-50 text-rose-800"
+          }`}
+        >
+          <div className="flex items-start gap-3">
+            <AlertCircleIcon className="mt-0.5 h-4 w-4 shrink-0" />
+            <p>
+              {daysLeft !== null && daysLeft > 0
+                ? `Your membership expires in ${daysLeft} day${daysLeft === 1 ? "" : "s"}. Renew now to avoid interruption.`
+                : "Your membership has expired or is awaiting activation. Renew to regain full access."}
+            </p>
+          </div>
+        </div>
+      ) : null}
 
+      <div className="grid gap-4 md:grid-cols-3">
+        <StatCard
+          label="Status"
+          value={formatMembershipStatus(stats.membership.status)}
+          note="Current membership state."
+          icon={CheckCircleIcon}
+          tone="blue"
+        />
+        <StatCard
+          label="Total paid"
+          value={formatCurrency(stats.payments.total)}
+          note={
+            stats.payments.lastPayment
+              ? `Last payment on ${formatDate(stats.payments.lastPayment)}`
+              : "No recorded payments yet."
+          }
+          icon={WalletIcon}
+          tone="green"
+        />
+        <StatCard
+          label="Renewal"
+          value={daysLeft !== null ? (daysLeft <= 0 ? "Expired" : `${daysLeft} days`) : "—"}
+          note="Time remaining on the current plan."
+          icon={CalendarIcon}
+          tone={daysLeft !== null && daysLeft <= 15 ? "amber" : "blue"}
+        />
+      </div>
+
+      <div className="grid gap-6 xl:grid-cols-[0.95fr_1.05fr]">
         <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Quick Action
-            </CardTitle>
+          <CardHeader>
+            <PanelHeader
+              eyebrow="Payments"
+              title="Payment summary"
+              description="A concise overview of what you have already paid."
+            />
           </CardHeader>
           <CardContent>
-            <Button asChild className="w-full">
+            <div className="rounded-[1.5rem] bg-slate-50 p-5">
+              <p className="text-xs uppercase tracking-[0.18em] text-slate-400">
+                Total contributions
+              </p>
+              <p className="mt-3 text-3xl font-semibold tracking-tight text-emerald-600">
+                {formatCurrency(stats.payments.total)}
+              </p>
+              {stats.payments.lastPayment ? (
+                <div className="mt-4 flex items-center gap-2 text-sm text-muted-foreground">
+                  <CalendarIcon className="h-4 w-4" />
+                  Last payment: {formatDate(stats.payments.lastPayment)}
+                </div>
+              ) : null}
+            </div>
+
+            <Button asChild className="mt-5 w-full">
               <Link href="/dashboard/my-membership">
                 <IndianRupeeIcon className="mr-2 h-4 w-4" />
                 Pay / Renew Membership
@@ -551,46 +646,44 @@ function MemberDashboard({ stats }: { stats: MemberStats }) {
             </Button>
           </CardContent>
         </Card>
-      </div>
 
-      {/* Sub-Members Card */}
-      {stats.subMembers.length > 0 && (
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-semibold">
-              Sub-Members
-            </CardTitle>
-            <UsersIcon className="h-4 w-4 text-muted-foreground" />
+          <CardHeader>
+            <PanelHeader
+              eyebrow="Family"
+              title="Sub-members"
+              description="People currently associated with your membership."
+            />
           </CardHeader>
-          <CardContent className="p-0">
-            <ul className="divide-y">
-              {stats.subMembers.map((member) => (
-                <li
+          <CardContent className="space-y-3">
+            {stats.subMembers.length === 0 ? (
+              <p className="rounded-3xl bg-slate-50 px-4 py-6 text-sm text-muted-foreground">
+                No sub-members have been added yet.
+              </p>
+            ) : (
+              stats.subMembers.map((member) => (
+                <div
                   key={member.id}
-                  className="flex items-center justify-between px-6 py-3"
+                  className="flex items-center justify-between gap-3 rounded-3xl border border-slate-100 bg-slate-50/80 p-4"
                 >
-                  <div>
-                    <p className="text-sm font-medium">{member.name}</p>
-                    <p className="text-xs text-muted-foreground">
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-semibold text-slate-900">
+                      {member.name}
+                    </p>
+                    <p className="mt-1 text-xs text-muted-foreground">
                       {member.memberId} · {member.relation}
                     </p>
                   </div>
-                  <Badge variant="outline" className="text-xs">
-                    Sub-member
-                  </Badge>
-                </li>
-              ))}
-            </ul>
+                  <Badge variant="outline">Sub-member</Badge>
+                </div>
+              ))
+            )}
           </CardContent>
         </Card>
-      )}
+      </div>
     </div>
   );
 }
-
-// ---------------------------------------------------------------------------
-// Main page component
-// ---------------------------------------------------------------------------
 
 export default function DashboardPage() {
   const { data: session, status } = useSession();
@@ -617,8 +710,9 @@ export default function DashboardPage() {
         const data = await res.json();
         if (!cancelled) setStats(data);
       } catch (err) {
-        if (!cancelled)
+        if (!cancelled) {
           setError(err instanceof Error ? err.message : "Failed to load stats");
+        }
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -632,29 +726,35 @@ export default function DashboardPage() {
 
   if (status === "loading" || loading) {
     return (
-      <div className="flex items-center justify-center py-24 text-muted-foreground">
-        <RefreshCwIcon className="mr-2 h-5 w-5 animate-spin" />
-        Loading dashboard…
+      <div className="flex min-h-[50vh] items-center justify-center">
+        <div className="rounded-[1.75rem] border border-white/70 bg-white/80 px-6 py-5 text-sm text-muted-foreground shadow-[0_24px_60px_-32px_rgba(15,23,42,0.35)]">
+          <RefreshCwIcon className="mr-2 inline h-4 w-4 animate-spin" />
+          Loading dashboard…
+        </div>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="flex items-center justify-center py-24">
-        <div className="text-center">
-          <AlertCircleIcon className="mx-auto mb-3 h-8 w-8 text-destructive" />
-          <p className="font-medium text-destructive">Failed to load stats</p>
-          <p className="mt-1 text-sm text-muted-foreground">{error}</p>
-          <Button
-            variant="outline"
-            size="sm"
-            className="mt-4"
-            onClick={() => window.location.reload()}
-          >
-            Retry
-          </Button>
-        </div>
+      <div className="flex min-h-[50vh] items-center justify-center">
+        <Card className="max-w-md">
+          <CardContent className="p-8 text-center">
+            <AlertCircleIcon className="mx-auto h-9 w-9 text-destructive" />
+            <h2 className="mt-4 text-lg font-semibold text-slate-900">
+              Failed to load stats
+            </h2>
+            <p className="mt-2 text-sm text-muted-foreground">{error}</p>
+            <Button
+              variant="outline"
+              size="sm"
+              className="mt-5"
+              onClick={() => window.location.reload()}
+            >
+              Retry
+            </Button>
+          </CardContent>
+        </Card>
       </div>
     );
   }
@@ -662,29 +762,13 @@ export default function DashboardPage() {
   if (!stats) return null;
 
   if (role === "ADMIN" || role === "OPERATOR") {
-    return (
-      <div className="space-y-6 p-6">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Dashboard</h1>
-          <p className="text-sm text-muted-foreground">
-            Overview of club activity and finances
-          </p>
-        </div>
-        <AdminDashboard stats={stats as AdminStats} />
-      </div>
-    );
+    return <AdminDashboard stats={stats as AdminStats} role={role} />;
   }
 
-  // MEMBER view
   return (
-    <div className="space-y-6 p-6">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">My Dashboard</h1>
-        <p className="text-sm text-muted-foreground">
-          Welcome back, {session?.user?.name}
-        </p>
-      </div>
-      <MemberDashboard stats={stats as MemberStats} />
-    </div>
+    <MemberDashboard
+      stats={stats as MemberStats}
+      memberName={session?.user?.name}
+    />
   );
 }

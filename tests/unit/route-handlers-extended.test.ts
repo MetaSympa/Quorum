@@ -33,10 +33,14 @@ vi.mock("@/lib/prisma", () => ({ prisma: mockPrisma }));
 vi.mock("@prisma/client", () => ({ Prisma: {} }));
 
 // Audit mock
-vi.mock("@/lib/audit", () => ({
-  logAudit: vi.fn().mockResolvedValue(undefined),
-  logActivity: vi.fn().mockResolvedValue(undefined),
-}));
+vi.mock("@/lib/audit", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/audit")>();
+  return {
+    ...actual,
+    logAudit: vi.fn().mockResolvedValue(undefined),
+    logActivity: vi.fn().mockResolvedValue(undefined),
+  };
+});
 
 // Service mocks
 const mockListSponsors = vi.fn();
@@ -534,6 +538,62 @@ describe("GET /api/dashboard/stats", () => {
     expect(json.financial.totalIncome).toBe(0);
   });
 
+  it("builds recent audit snapshots from linked transactions", async () => {
+    mockGetAuthSession.mockResolvedValue(adminSession);
+    mockPrisma.user.count.mockResolvedValue(10);
+    mockPrisma.transaction.aggregate.mockResolvedValue({ _sum: { amount: 5000 } });
+    mockPrisma.approval.count.mockResolvedValue(3);
+    mockPrisma.activityLog.findMany.mockResolvedValue([]);
+    mockPrisma.auditLog.findMany.mockResolvedValue([
+      {
+        id: "audit-1",
+        createdAt: new Date("2026-03-15T10:00:00.000Z"),
+        performedBy: {
+          id: "admin-id",
+          name: "Admin",
+          role: "ADMIN",
+          memberId: "DPC-2026-0001-00",
+        },
+        transaction: {
+          id: "txn-1",
+          type: "CASH_IN",
+          category: "SPONSORSHIP",
+          amount: 2500,
+          paymentMode: "UPI",
+          description: "Sponsor payment",
+          sponsorPurpose: "GOLD_SPONSOR",
+          approvalStatus: "APPROVED",
+          approvalSource: "MANUAL",
+          enteredById: "op-id",
+          approvedById: "admin-id",
+          approvedAt: new Date("2026-03-15T09:00:00.000Z"),
+          razorpayPaymentId: null,
+          razorpayOrderId: null,
+          senderName: "Acme Corp",
+          senderPhone: null,
+          senderUpiId: null,
+          senderBankAccount: null,
+          senderBankName: null,
+          receiptNumber: "RCPT-1",
+          memberId: null,
+          sponsorId: "sponsor-1",
+          createdAt: new Date("2026-03-15T08:00:00.000Z"),
+        },
+      },
+    ]);
+
+    const res = await GET(mockRequest("GET", "/api/dashboard/stats"));
+    expect(res.status).toBe(200);
+
+    const json = await res.json();
+    expect(json.recentAudit[0].transactionSnapshot).toMatchObject({
+      category: "SPONSORSHIP",
+      amount: "2500",
+      senderName: "Acme Corp",
+      approvalStatus: "APPROVED",
+    });
+  });
+
   it("returns member stats for MEMBER role", async () => {
     mockGetAuthSession.mockResolvedValue(memberSession);
     mockPrisma.user.findUnique.mockResolvedValue({
@@ -699,6 +759,51 @@ describe("GET /api/audit-log", () => {
     const json = await res.json();
     expect(json).toHaveProperty("data");
     expect(json).toHaveProperty("pagination");
+  });
+
+  it("hydrates audit log snapshots from transactions when needed", async () => {
+    mockGetAuthSession.mockResolvedValue(operatorSession);
+    mockPrisma.auditLog.count.mockResolvedValue(1);
+    mockPrisma.auditLog.findMany.mockResolvedValue([
+      {
+        id: "al2",
+        transactionId: "t2",
+        performedById: "u1",
+        createdAt: new Date("2026-03-15T11:00:00.000Z"),
+        performedBy: { id: "u1", name: "Admin", role: "ADMIN", memberId: "M1" },
+        transaction: {
+          id: "t2",
+          type: "CASH_OUT",
+          category: "EXPENSE",
+          amount: 1250,
+          paymentMode: "BANK_TRANSFER",
+          description: "Venue advance",
+          sponsorPurpose: null,
+          approvalStatus: "APPROVED",
+          approvalSource: "MANUAL",
+          senderName: "Venue Vendor",
+          senderPhone: null,
+          senderUpiId: null,
+          senderBankAccount: null,
+          senderBankName: "Axis Bank",
+          razorpayPaymentId: null,
+          razorpayOrderId: null,
+          receiptNumber: "RCPT-2",
+          createdAt: new Date("2026-03-15T10:30:00.000Z"),
+        },
+      },
+    ]);
+
+    const res = await GET(mockRequest("GET", "/api/audit-log"));
+    expect(res.status).toBe(200);
+
+    const json = await res.json();
+    expect(json.data[0].transactionSnapshot).toMatchObject({
+      category: "EXPENSE",
+      amount: "1250",
+      senderName: "Venue Vendor",
+      approvalStatus: "APPROVED",
+    });
   });
 
   it("applies transaction category filter", async () => {

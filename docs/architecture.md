@@ -1,6 +1,6 @@
 # Architecture
 
-DPS Dashboard is a monolithic Next.js 14 application with server-side rendering, API routes, and a PostgreSQL database. All layers live in one repository and deploy as a single Docker service.
+Quorum is a monolithic Next.js 14 application with server-side rendering, API routes, and a PostgreSQL database. All layers live in one repository and deploy as a single Docker service.
 
 ---
 
@@ -265,7 +265,7 @@ dps-dashboard/
 
 ## Key Design Decisions
 
-**Monolith over microservices.** A single Next.js app handles the frontend, API routes, and background cron. This simplifies deployment and development for a small club administration use case.
+**Monolith over microservices.** A single Next.js app handles the frontend, API routes, and background cron. This simplifies deployment and development for a small organization administration use case.
 
 **Service layer pattern.** API routes are thin controllers. All business rules live in `lib/services/`. This makes business logic testable without HTTP overhead and prevents routes from becoming bloated.
 

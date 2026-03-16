@@ -117,17 +117,17 @@ const ACTION_LABELS: Record<string, string> = {
 };
 
 const STATUS_CLASSES: Record<string, string> = {
-  PENDING: "bg-yellow-100 text-yellow-800",
-  APPROVED: "bg-green-100 text-green-800",
-  REJECTED: "bg-red-100 text-red-800",
+  PENDING: "bg-amber-100 text-amber-800",
+  APPROVED: "bg-emerald-100 text-emerald-800",
+  REJECTED: "bg-rose-100 text-rose-800",
 };
 
 const ENTITY_TYPE_COLORS: Record<string, string> = {
-  TRANSACTION: "bg-blue-100 text-blue-800",
-  MEMBER_ADD: "bg-green-100 text-green-800",
-  MEMBER_EDIT: "bg-yellow-100 text-yellow-800",
-  MEMBER_DELETE: "bg-red-100 text-red-800",
-  MEMBERSHIP: "bg-purple-100 text-purple-800",
+  TRANSACTION: "bg-sky-100 text-sky-800",
+  MEMBER_ADD: "bg-emerald-100 text-emerald-800",
+  MEMBER_EDIT: "bg-amber-100 text-amber-800",
+  MEMBER_DELETE: "bg-rose-100 text-rose-800",
+  MEMBERSHIP: "bg-indigo-100 text-indigo-800",
 };
 
 /** Human-readable field names */
@@ -240,9 +240,9 @@ function formatFieldValue(
       : `₹${n.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
     const className =
       txType === "CASH_IN"
-        ? "text-green-700 font-semibold"
+        ? "text-emerald-700 font-semibold"
         : txType === "CASH_OUT"
-        ? "text-red-700 font-semibold"
+        ? "text-rose-700 font-semibold"
         : "font-semibold";
     return { text: formatted, className };
   }
@@ -315,15 +315,15 @@ function DiffRow({
   return (
     <div
       className={`py-2 border-b border-muted/50 last:border-0 ${
-        changed ? "bg-yellow-50 rounded px-2" : ""
+        changed ? "rounded px-2 bg-amber-50" : ""
       }`}
     >
       <div className="text-xs font-medium text-muted-foreground mb-1">{label}</div>
       {changed ? (
         <div className="flex items-center gap-2 text-sm flex-wrap">
-          <span className={`line-through text-red-500 ${oldClass ?? ""}`}>{oldText || "—"}</span>
+          <span className={`line-through text-rose-500 ${oldClass ?? ""}`}>{oldText || "—"}</span>
           <span className="text-muted-foreground text-xs">→</span>
-          <span className={`font-medium text-green-700 ${newClass ?? ""}`}>{newText || "—"}</span>
+          <span className={`font-medium text-emerald-700 ${newClass ?? ""}`}>{newText || "—"}</span>
         </div>
       ) : (
         <span className={`text-sm font-medium ${newClass ?? ""}`}>{newText || "—"}</span>
@@ -348,9 +348,9 @@ function TransactionLiveSection({ tx }: { tx: Record<string, unknown> }) {
     : `₹${amountNum.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   const amountCls =
     txType === "CASH_IN"
-      ? "text-green-700 font-semibold"
+      ? "text-emerald-700 font-semibold"
       : txType === "CASH_OUT"
-      ? "text-red-700 font-semibold"
+      ? "text-rose-700 font-semibold"
       : "font-semibold";
 
   return (
@@ -520,7 +520,7 @@ function ApprovalDetail({
 
     return (
       <div className="space-y-3">
-        <div className="flex items-center gap-2 p-3 bg-red-50 rounded-md text-red-700 text-sm">
+        <div className="flex items-center gap-2 rounded-xl bg-rose-50 p-3 text-sm text-rose-700">
           <AlertTriangle className="h-4 w-4 shrink-0" />
           <span>{warningText}</span>
         </div>
@@ -837,10 +837,10 @@ export default function ApprovalsPage() {
       const params = new URLSearchParams({
         page: String(pageToLoad),
         limit: String(limit),
+        status: statusFilter,
       });
 
       if (entityTypeFilter !== "ALL") params.set("entityType", entityTypeFilter);
-      if (statusFilter !== "ALL") params.set("status", statusFilter);
 
       const res = await fetch(`/api/approvals?${params.toString()}`);
       if (!res.ok) {
@@ -1008,7 +1008,7 @@ export default function ApprovalsPage() {
                     <TableCell>
                       <span
                         className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
-                          ENTITY_TYPE_COLORS[approval.entityType] ?? "bg-gray-100 text-gray-800"
+                          ENTITY_TYPE_COLORS[approval.entityType] ?? "bg-slate-100 text-slate-800"
                         }`}
                       >
                         {ENTITY_TYPE_LABELS[approval.entityType] ?? approval.entityType}
@@ -1029,7 +1029,7 @@ export default function ApprovalsPage() {
                     <TableCell>
                       <span
                         className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
-                          STATUS_CLASSES[approval.status] ?? "bg-gray-100 text-gray-800"
+                          STATUS_CLASSES[approval.status] ?? "bg-slate-100 text-slate-800"
                         }`}
                       >
                         {approval.status}
@@ -1081,7 +1081,7 @@ export default function ApprovalsPage() {
                 <DialogTitle className="flex items-center gap-2">
                   <span
                     className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
-                      ENTITY_TYPE_COLORS[selected.entityType] ?? "bg-gray-100 text-gray-800"
+                      ENTITY_TYPE_COLORS[selected.entityType] ?? "bg-slate-100 text-slate-800"
                     }`}
                   >
                     {ENTITY_TYPE_LABELS[selected.entityType] ?? selected.entityType}
@@ -1127,7 +1127,7 @@ export default function ApprovalsPage() {
                   <DialogFooter className="mt-4 flex gap-2 sm:flex-row flex-col">
                     <Button
                       variant="outline"
-                      className="border-red-300 text-red-600 hover:bg-red-50"
+                      className="border-rose-300 text-rose-600 hover:bg-rose-50"
                       disabled={actionLoading !== null}
                       onClick={() => handleAction("reject")}
                     >
@@ -1141,7 +1141,7 @@ export default function ApprovalsPage() {
                       )}
                     </Button>
                     <Button
-                      className="bg-green-600 hover:bg-green-700 text-white"
+                      className="bg-emerald-600 text-white hover:bg-emerald-700"
                       disabled={actionLoading !== null}
                       onClick={() => handleAction("approve")}
                     >
@@ -1162,11 +1162,11 @@ export default function ApprovalsPage() {
                 <div className="mt-4 p-3 rounded-md bg-muted text-sm">
                   <div className="font-medium mb-1">
                     {selected.status === "APPROVED" ? (
-                      <span className="text-green-700 flex items-center gap-1">
+                      <span className="flex items-center gap-1 text-emerald-700">
                         <CheckCircle className="h-4 w-4" /> Approved
                       </span>
                     ) : (
-                      <span className="text-red-600 flex items-center gap-1">
+                      <span className="flex items-center gap-1 text-rose-600">
                         <XCircle className="h-4 w-4" /> Rejected
                       </span>
                     )}

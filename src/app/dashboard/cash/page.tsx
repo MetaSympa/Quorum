@@ -525,8 +525,8 @@ export default function CashPage() {
         variant={type === "CASH_IN" ? "default" : "destructive"}
         className={
           type === "CASH_IN"
-            ? "bg-green-100 text-green-800 hover:bg-green-100"
-            : "bg-red-100 text-red-800 hover:bg-red-100"
+            ? "bg-emerald-100 text-emerald-800 hover:bg-emerald-100"
+            : "bg-rose-100 text-rose-800 hover:bg-rose-100"
         }
       >
         {type === "CASH_IN" ? (
@@ -542,11 +542,11 @@ export default function CashPage() {
   function StatusBadge({ status }: { status: string }) {
     const variants: Record<string, string> = {
       APPROVED:
-        "bg-green-100 text-green-800 hover:bg-green-100",
+        "bg-emerald-100 text-emerald-800 hover:bg-emerald-100",
       PENDING:
-        "bg-yellow-100 text-yellow-800 hover:bg-yellow-100",
+        "bg-amber-100 text-amber-800 hover:bg-amber-100",
       REJECTED:
-        "bg-red-100 text-red-800 hover:bg-red-100",
+        "bg-rose-100 text-rose-800 hover:bg-rose-100",
     };
     return (
       <Badge className={variants[status] ?? ""}>{status}</Badge>
@@ -567,7 +567,7 @@ export default function CashPage() {
             variant={formData.type === "CASH_IN" ? "default" : "outline"}
             className={
               formData.type === "CASH_IN"
-                ? "flex-1 bg-green-600 hover:bg-green-700"
+                ? "flex-1 bg-emerald-600 hover:bg-emerald-700"
                 : "flex-1"
             }
             onClick={() => updateForm("type", "CASH_IN")}
@@ -699,12 +699,12 @@ export default function CashPage() {
   // ---------------------------------------------------------------------------
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="space-y-6 p-6">
       {/* Page header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Cash Management</h1>
-          <p className="text-muted-foreground text-sm mt-1">
+          <h1 className="text-2xl font-bold tracking-tight text-slate-900">Cash Management</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
             Track all income and expense transactions.
           </p>
         </div>
@@ -734,12 +734,12 @@ export default function CashPage() {
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-              <ArrowDownIcon className="h-4 w-4 text-green-600" />
+              <ArrowDownIcon className="h-4 w-4 text-emerald-600" />
               Total Income
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold text-green-700">
+            <p className="text-2xl font-bold text-emerald-700">
               {formatCurrency(summary.totalIncome)}
             </p>
             <p className="text-xs text-muted-foreground mt-1">Approved only</p>
@@ -749,12 +749,12 @@ export default function CashPage() {
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-              <ArrowUpIcon className="h-4 w-4 text-red-600" />
+              <ArrowUpIcon className="h-4 w-4 text-rose-600" />
               Total Expenses
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold text-red-700">
+            <p className="text-2xl font-bold text-rose-700">
               {formatCurrency(summary.totalExpenses)}
             </p>
             <p className="text-xs text-muted-foreground mt-1">Approved only</p>
@@ -764,12 +764,12 @@ export default function CashPage() {
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-              <ClockIcon className="h-4 w-4 text-yellow-600" />
+              <ClockIcon className="h-4 w-4 text-amber-600" />
               Pending Approvals
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold text-yellow-700">
+            <p className="text-2xl font-bold text-amber-700">
               {formatCurrency(summary.pendingAmount)}
             </p>
             <p className="text-xs text-muted-foreground mt-1">
@@ -781,14 +781,14 @@ export default function CashPage() {
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-              <WalletIcon className="h-4 w-4 text-blue-600" />
+              <WalletIcon className="h-4 w-4 text-sky-600" />
               Net Balance
             </CardTitle>
           </CardHeader>
           <CardContent>
             <p
               className={`text-2xl font-bold ${
-                summary.netBalance >= 0 ? "text-blue-700" : "text-red-700"
+                summary.netBalance >= 0 ? "text-sky-700" : "text-rose-700"
               }`}
             >
               {formatCurrency(summary.netBalance)}
@@ -906,7 +906,7 @@ export default function CashPage() {
 
       {/* Error */}
       {error && (
-        <div className="rounded-md bg-red-50 border border-red-200 text-red-700 px-4 py-3 text-sm">
+        <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
           {error}
         </div>
       )}
@@ -968,7 +968,7 @@ export default function CashPage() {
                   <TableCell className="text-sm max-w-[200px] truncate">
                     {t.description}
                     {t.approvalSource === "RAZORPAY_WEBHOOK" && (
-                      <Badge className="ml-2 bg-purple-100 text-purple-800 text-xs">
+                      <Badge className="ml-2 bg-indigo-100 text-xs text-indigo-800">
                         Razorpay
                       </Badge>
                     )}
@@ -988,8 +988,8 @@ export default function CashPage() {
                           size="icon"
                           className={`h-7 w-7 ${
                             t.approvalStatus === "APPROVED"
-                              ? "text-blue-600 hover:text-blue-700 hover:bg-blue-50"
-                              : "text-gray-300 cursor-not-allowed"
+                              ? "text-sky-600 hover:bg-sky-50 hover:text-sky-700"
+                              : "cursor-not-allowed text-slate-300"
                           }`}
                           disabled={t.approvalStatus !== "APPROVED"}
                           title={
@@ -1018,7 +1018,7 @@ export default function CashPage() {
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="h-7 w-7 text-red-600 hover:text-red-700 hover:bg-red-50"
+                          className="h-7 w-7 text-rose-600 hover:bg-rose-50 hover:text-rose-700"
                           disabled={t.approvalSource === "RAZORPAY_WEBHOOK"}
                           title={
                             t.approvalSource === "RAZORPAY_WEBHOOK"
@@ -1076,7 +1076,7 @@ export default function CashPage() {
           </DialogHeader>
           {TransactionForm()}
           {actionError && (
-            <p className="text-sm text-red-600 mt-1">{actionError}</p>
+            <p className="mt-1 text-sm text-rose-600">{actionError}</p>
           )}
           <DialogFooter>
             <Button
@@ -1107,7 +1107,7 @@ export default function CashPage() {
           </DialogHeader>
           {TransactionForm()}
           {actionError && (
-            <p className="text-sm text-red-600 mt-1">{actionError}</p>
+            <p className="mt-1 text-sm text-rose-600">{actionError}</p>
           )}
           <DialogFooter>
             <Button
@@ -1145,7 +1145,7 @@ export default function CashPage() {
               </div>
             )}
             {receiptError && !receiptLoading && (
-              <div className="rounded-md bg-red-50 border border-red-200 text-red-700 px-4 py-3 text-sm">
+              <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
                 {receiptError}
               </div>
             )}
@@ -1193,13 +1193,13 @@ export default function CashPage() {
                   </p>
                 </div>
                 {isAdmin && (
-                  <p className="mt-2 text-xs text-yellow-700 bg-yellow-50 rounded p-2">
+                  <p className="mt-2 rounded p-2 text-xs text-amber-700 bg-amber-50">
                     This will mark the transaction as REJECTED. The record
                     will be retained in the audit log.
                   </p>
                 )}
                 {isOperator && (
-                  <p className="mt-2 text-xs text-blue-700 bg-blue-50 rounded p-2">
+                  <p className="mt-2 rounded bg-sky-50 p-2 text-xs text-sky-700">
                     This will submit a void request for admin approval.
                   </p>
                 )}
@@ -1207,7 +1207,7 @@ export default function CashPage() {
             )}
           </div>
           {actionError && (
-            <p className="text-sm text-red-600">{actionError}</p>
+            <p className="text-sm text-rose-600">{actionError}</p>
           )}
           <DialogFooter>
             <Button

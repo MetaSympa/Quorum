@@ -261,8 +261,8 @@ export default function ActivityLogPage() {
     <div className="space-y-6 p-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">System Activity Log</h1>
-          <p className="text-muted-foreground text-sm mt-1">
+          <h1 className="text-2xl font-bold tracking-tight text-slate-900">System Activity Log</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
             Append-only record of all user and system actions. Read-only.
           </p>
         </div>
@@ -366,7 +366,7 @@ export default function ActivityLogPage() {
                 {entries.map((entry) => (
                   <TableRow
                     key={entry.id}
-                    className="cursor-pointer hover:bg-muted/50"
+                    className="cursor-pointer hover:bg-sky-50/60"
                     onClick={() => setSelectedEntry(entry)}
                   >
                     <TableCell className="whitespace-nowrap text-sm">

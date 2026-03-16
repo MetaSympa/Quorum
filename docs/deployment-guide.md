@@ -1,6 +1,6 @@
 # Deployment Guide
 
-This guide covers deploying the DPS Dashboard to a LunaNode VPS using Docker Compose and Caddy as the reverse proxy.
+This guide covers deploying Quorum to a LunaNode VPS using Docker Compose and Caddy as the reverse proxy.
 
 ---
 

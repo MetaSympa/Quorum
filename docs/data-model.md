@@ -1,6 +1,6 @@
 # Data Model
 
-DPS Dashboard uses PostgreSQL 16 with Prisma ORM. The schema defines 10 enums and 10 models. All PII fields (phone numbers, addresses, bank details) are encrypted at rest using AES-256-GCM via Prisma middleware.
+Quorum uses PostgreSQL 16 with Prisma ORM. The schema defines 10 enums and 10 models. All PII fields (phone numbers, addresses, bank details) are encrypted at rest using AES-256-GCM via Prisma middleware.
 
 ---
 
@@ -62,7 +62,7 @@ All member IDs follow the format `DPC-YYYY-NNNN-SS`:
 
 | Segment | Meaning | Example |
 |---------|---------|---------|
-| `DPC` | Club prefix | `DPC` |
+| `DPC` | Organization prefix | `DPC` |
 | `YYYY` | Year of joining | `2026` |
 | `NNNN` | Auto-incremented member number (zero-padded to 4 digits) | `0025` |
 | `SS` | Sub-member index: `00` = primary, `01`–`03` = sub-members | `00`, `01` |
@@ -208,7 +208,7 @@ Note: Refunds are recorded as `type=CASH_OUT`, `category=EXPENSE`. There is no s
 
 ### Sponsor
 
-A sponsor (individual or company) who has made or may make a donation to the club.
+A sponsor (individual or company) who has made or may make a donation to the organization.
 
 | Field | Type | Notes |
 |-------|------|-------|
@@ -234,7 +234,7 @@ Shareable public payment link with UPI and bank transfer details.
 | `sponsorId` | UUID FK → Sponsor? | Nullable — generic links not tied to a specific sponsor |
 | `token` | VARCHAR(255) UNIQUE | Cryptographically random UUID |
 | `amount` | DECIMAL(12,2)? | Nullable — open-ended if null (sponsor chooses amount) |
-| `upiId` | VARCHAR(255) | Club UPI ID |
+| `upiId` | VARCHAR(255) | Organization UPI ID |
 | `bankDetails` | JSON? | `{ accountNumber, bankName, ifscCode }` |
 | `isActive` | BOOLEAN | Default: true |
 | `createdById` | UUID FK → User | |

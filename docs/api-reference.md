@@ -1,6 +1,6 @@
 # API Reference
 
-All API routes are prefixed with `/api`. Unless marked **Public**, every route requires a valid session cookie (`dps.session-token`) set by NextAuth after login.
+All API routes are prefixed with `/api`. Unless marked **Public**, every route requires a valid session cookie set by NextAuth after login.
 
 Role codes: **A** = Admin only, **AO** = Admin + Operator, **ALL** = All authenticated users, **PUB** = Public (no auth).
 

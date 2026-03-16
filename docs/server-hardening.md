@@ -1,6 +1,6 @@
 # Server Hardening Guide — LunaNode VPS
 
-This guide documents every hardening step for the DPS Dashboard deployment on a LunaNode Cloud VPS running Ubuntu 22.04 LTS. Follow the steps in order. The app runs under a dedicated non-root `dps` user.
+This guide documents every hardening step for the Quorum deployment on a LunaNode Cloud VPS running Ubuntu 22.04 LTS. Follow the steps in order. The app runs under a dedicated non-root `dps` user.
 
 **Threat model**: Internet-facing VPS running Docker Compose (Next.js + PostgreSQL + Caddy). Primary risks are brute-force SSH login, exposed services, and secrets leakage. This guide addresses all three.
 

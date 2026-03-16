@@ -26,6 +26,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 
+import { resolveAuditSnapshot } from "@/lib/audit";
 import { getAuthSession } from "@/lib/auth";
 import { requireAuth } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
@@ -122,10 +123,36 @@ async function getAdminStats() {
       take: 10,
       select: {
         id: true,
-        transactionSnapshot: true,
         createdAt: true,
         performedBy: {
           select: { id: true, name: true, role: true, memberId: true },
+        },
+        transaction: {
+          select: {
+            id: true,
+            type: true,
+            category: true,
+            amount: true,
+            paymentMode: true,
+            description: true,
+            sponsorPurpose: true,
+            approvalStatus: true,
+            approvalSource: true,
+            enteredById: true,
+            approvedById: true,
+            approvedAt: true,
+            razorpayPaymentId: true,
+            razorpayOrderId: true,
+            senderName: true,
+            senderPhone: true,
+            senderUpiId: true,
+            senderBankAccount: true,
+            senderBankName: true,
+            receiptNumber: true,
+            memberId: true,
+            sponsorId: true,
+            createdAt: true,
+          },
         },
       },
     }),
@@ -160,7 +187,7 @@ async function getAdminStats() {
     })),
     recentAudit: recentAudit.map((a) => ({
       id: a.id,
-      transactionSnapshot: a.transactionSnapshot,
+      transactionSnapshot: resolveAuditSnapshot(a),
       createdAt: a.createdAt,
       performedBy: a.performedBy,
     })),

@@ -1,6 +1,6 @@
-# DPS Dashboard Documentation
+# Quorum Documentation
 
-This directory contains complete developer documentation for the Deshapriya Park Durgotsab Samity (DPS) club management dashboard.
+This directory contains complete developer documentation for the Quorum organization management dashboard.
 
 ---
 
@@ -35,4 +35,4 @@ This directory contains complete developer documentation for the Deshapriya Park
 
 ## For the root README
 
-See [../README.md](../README.md) for the one-command start, tech stack summary, and feature list.
+See [../README.md](../README.md) for the quick start, tech stack summary, and feature list.

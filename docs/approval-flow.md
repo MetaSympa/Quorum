@@ -1,6 +1,6 @@
 # Approval Flow
 
-DPS Dashboard uses a universal approval system for all operator-submitted changes. Operators cannot directly modify production data — every change they submit is reviewed by an admin before being applied.
+Quorum uses a universal approval system for all operator-submitted changes. Operators cannot directly modify production data — every change they submit is reviewed by an admin before being applied.
 
 ---
 

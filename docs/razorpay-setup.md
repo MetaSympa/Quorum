@@ -1,13 +1,13 @@
 # Razorpay Setup
 
-DPS Dashboard uses Razorpay to accept UPI and bank transfer payments from members and sponsors. This document covers account creation, API key configuration, and webhook setup.
+Quorum uses Razorpay to accept UPI and bank transfer payments from members and sponsors. This document covers account creation, API key configuration, and webhook setup.
 
 ---
 
 ## 1. Create a Razorpay Account
 
 1. Go to https://dashboard.razorpay.com/signup
-2. Complete KYC with your business details (Deshapriya Park Durgotsab Samity)
+2. Complete KYC with your organization's business details
 3. Activate the account. Test mode is available immediately without KYC completion
 
 ---
@@ -39,7 +39,7 @@ Set `RAZORPAY_TEST_MODE=false` when switching to live mode.
 
 ## 3. Configure the Webhook
 
-Razorpay sends webhook events when payments are completed. The DPS Dashboard webhook endpoint is:
+Razorpay sends webhook events when payments are completed. The Quorum webhook endpoint is:
 
 ```
 https://yourdomain.com/api/webhooks/razorpay
@@ -105,7 +105,7 @@ In test mode you can simulate payments using Razorpay's test cards and UPI IDs:
 
 ## 5. Virtual Accounts for Bank Transfers
 
-The DPS Dashboard uses Razorpay Virtual Accounts (VANs) to auto-detect bank transfers (NEFT/RTGS/IMPS).
+Quorum uses Razorpay Virtual Accounts (VANs) to auto-detect bank transfers (NEFT/RTGS/IMPS).
 
 When a member or sponsor chooses "Bank Transfer":
 1. The app calls `POST /api/payments/create-order` which creates a Razorpay order

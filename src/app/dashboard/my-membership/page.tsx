@@ -356,13 +356,13 @@ export default function MyMembershipPage() {
 
   return (
     <div className="space-y-6 p-6">
-      <h1 className="text-2xl font-bold">My Membership</h1>
+      <h1 className="text-2xl font-bold tracking-tight text-slate-900">My Membership</h1>
 
       {/* ------------------------------------------------------------------ */}
       {/* Sub-member pay-on-behalf banner                                      */}
       {/* ------------------------------------------------------------------ */}
       {isSubMember && (
-        <Card className="border-amber-200 bg-amber-50">
+        <Card className="border-amber-200 bg-amber-50/90">
           <CardContent className="flex items-center justify-between p-4">
             <p className="text-sm text-amber-800">
               You are viewing the membership for{" "}
@@ -389,9 +389,9 @@ export default function MyMembershipPage() {
       {/* Application fee alert                                               */}
       {/* ------------------------------------------------------------------ */}
       {needsAppFee && (
-        <Card className="border-blue-200 bg-blue-50">
+        <Card className="border-sky-200 bg-sky-50/90">
           <CardContent className="p-4">
-            <p className="text-sm text-blue-800">
+            <p className="text-sm text-sky-800">
               <strong>Application fee pending:</strong> A one-time application
               fee of {formatCurrency(APPLICATION_FEE)} is required. It will be
               included with your first membership payment.
@@ -460,7 +460,7 @@ export default function MyMembershipPage() {
               </p>
               <p className="text-sm">
                 {data.user.applicationFeePaid ? (
-                  <span className="text-green-600">Paid</span>
+                  <span className="text-emerald-600">Paid</span>
                 ) : (
                   <span className="text-amber-600">Not Paid</span>
                 )}

@@ -239,3 +239,154 @@ describe("sponsor purpose labels", () => {
     expect(map["MARKETING_PARTNER"]).toBe("Marketing Partner");
   });
 });
+
+// ---------------------------------------------------------------------------
+// generateReceipt — behavior tests (mocked Prisma)
+// ---------------------------------------------------------------------------
+
+vi.mock("@/lib/prisma", () => ({
+  prisma: {
+    transaction: { findUnique: vi.fn(), findFirst: vi.fn(), update: vi.fn() },
+    $transaction: vi.fn(),
+  },
+}));
+vi.mock("@/lib/audit", () => ({
+  logActivity: vi.fn(),
+}));
+
+import { prisma } from "@/lib/prisma";
+const mockPrisma = vi.mocked(prisma);
+
+import { generateReceipt } from "@/lib/receipt";
+import { logActivity } from "@/lib/audit";
+
+const baseTxn = {
+  id: "txn-1",
+  type: "CASH_IN",
+  category: "MEMBERSHIP_FEE",
+  amount: { toString: () => "250" },
+  paymentMode: "UPI",
+  description: "Monthly fee",
+  approvalStatus: "APPROVED",
+  approvedAt: new Date("2026-03-01"),
+  createdAt: new Date("2026-03-01"),
+  receiptNumber: null as string | null,
+  senderName: null,
+  sponsorPurpose: null,
+  member: {
+    id: "member-1",
+    name: "Test Member",
+    email: "test@example.com",
+    user: { memberId: "DPS-2026-0001-00", membershipStart: new Date(), membershipExpiry: new Date() },
+  },
+  sponsor: null,
+  enteredBy: { id: "admin-1", name: "Admin" },
+};
+
+beforeEach(() => {
+  vi.clearAllMocks();
+  mockPrisma.$transaction.mockImplementation(async (cb: (tx: typeof mockPrisma) => Promise<unknown>) => cb(mockPrisma));
+});
+
+describe("generateReceipt — behavior", () => {
+  it("rejects unapproved transaction", async () => {
+    mockPrisma.transaction.findUnique.mockResolvedValue({
+      ...baseTxn,
+      approvalStatus: "PENDING",
+    });
+
+    const result = await generateReceipt("txn-1", "admin-1");
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.status).toBe(400);
+      expect(result.error).toMatch(/approved/);
+    }
+  });
+
+  it("reuses existing receipt number without generating new one", async () => {
+    mockPrisma.transaction.findUnique.mockResolvedValue({
+      ...baseTxn,
+      receiptNumber: "DPS-REC-2026-0005",
+    });
+
+    const result = await generateReceipt("txn-1", "admin-1");
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.receiptNumber).toBe("DPS-REC-2026-0005");
+    }
+    // Should NOT generate a new receipt or log
+    expect(mockPrisma.$transaction).not.toHaveBeenCalled();
+    expect(vi.mocked(logActivity)).not.toHaveBeenCalled();
+  });
+
+  it("generates new receipt number when missing", async () => {
+    mockPrisma.transaction.findUnique.mockResolvedValue({ ...baseTxn, receiptNumber: null });
+    mockPrisma.transaction.findFirst.mockResolvedValue({ receiptNumber: "DPS-REC-2026-0010" });
+
+    const result = await generateReceipt("txn-1", "admin-1");
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.receiptNumber).toMatch(/^DPS-REC-\d{4}-\d{4}$/);
+    }
+    expect(mockPrisma.$transaction).toHaveBeenCalled();
+  });
+
+  it("logs activity only when a new receipt is created", async () => {
+    mockPrisma.transaction.findUnique.mockResolvedValue({ ...baseTxn, receiptNumber: null });
+    mockPrisma.transaction.findFirst.mockResolvedValue(null);
+
+    await generateReceipt("txn-1", "admin-1");
+
+    expect(vi.mocked(logActivity)).toHaveBeenCalledWith(
+      expect.objectContaining({ action: "receipt_generated" })
+    );
+  });
+
+  it("returns member receipt payload with memberId and dates", async () => {
+    mockPrisma.transaction.findUnique.mockResolvedValue({
+      ...baseTxn,
+      receiptNumber: "DPS-REC-2026-0001",
+    });
+
+    const result = await generateReceipt("txn-1", "admin-1");
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.type).toBe("MEMBER");
+      expect(result.data.memberName).toBe("Test Member");
+      expect(result.data.memberId).toBe("DPS-2026-0001-00");
+    }
+  });
+
+  it("returns sponsor receipt payload", async () => {
+    mockPrisma.transaction.findUnique.mockResolvedValue({
+      ...baseTxn,
+      category: "SPONSORSHIP",
+      receiptNumber: "DPS-REC-2026-0002",
+      sponsorPurpose: "GOLD_SPONSOR",
+      member: null,
+      sponsor: { id: "sponsor-1", name: "Sponsor Corp", company: "Corp Ltd" },
+    });
+
+    const result = await generateReceipt("txn-1", "admin-1");
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.type).toBe("SPONSOR");
+      expect(result.data.sponsorName).toBe("Sponsor Corp");
+      expect(result.data.sponsorCompany).toBe("Corp Ltd");
+      expect(result.data.sponsorPurpose).toBe("Gold Sponsor");
+    }
+  });
+
+  it("returns 404 for non-existent transaction", async () => {
+    mockPrisma.transaction.findUnique.mockResolvedValue(null);
+
+    const result = await generateReceipt("bad", "admin-1");
+    expect(result.success).toBe(false);
+    if (!result.success) expect(result.status).toBe(404);
+  });
+});

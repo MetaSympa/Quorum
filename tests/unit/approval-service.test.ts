@@ -50,7 +50,7 @@ describe("approvalListQuerySchema", () => {
   });
 
   it("accepts valid status values", () => {
-    const statuses = ["PENDING", "APPROVED", "REJECTED"];
+    const statuses = ["PENDING", "APPROVED", "REJECTED", "ALL"];
     for (const status of statuses) {
       const result = approvalListQuerySchema.safeParse({ status });
       expect(result.success).toBe(true);
@@ -247,6 +247,16 @@ describe("listApprovals", () => {
 
     const findManyCall = vi.mocked(prisma.approval.findMany).mock.calls[0][0];
     expect(findManyCall?.where).toMatchObject({ status: "APPROVED" });
+  });
+
+  it('does not apply a status filter when "ALL" is provided', async () => {
+    vi.mocked(prisma.approval.findMany).mockResolvedValue([]);
+    vi.mocked(prisma.approval.count).mockResolvedValue(0);
+
+    await listApprovals({ page: 1, limit: 20, status: "ALL" });
+
+    const findManyCall = vi.mocked(prisma.approval.findMany).mock.calls[0][0];
+    expect(findManyCall?.where).not.toHaveProperty("status");
   });
 
   it("calculates correct skip for page 2", async () => {
@@ -552,5 +562,225 @@ describe("rejectEntry", () => {
     );
     expect(vi.mocked(logAudit)).not.toHaveBeenCalled();
     expect(vi.mocked(logActivity)).toHaveBeenCalledOnce();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// approveEntry — missing entity-type handlers
+// ---------------------------------------------------------------------------
+
+describe("approveEntry — MEMBER_EDIT approve", () => {
+  it("applies newData fields to Member and mirrored User", async () => {
+    const editApproval = {
+      ...mockApproval,
+      entityType: "MEMBER_EDIT",
+      entityId: "member-1",
+      action: "edit_member",
+      newData: { name: "Updated Name", email: "new@example.com" },
+      status: "PENDING",
+    };
+
+    vi.mocked(prisma.approval.findUnique)
+      .mockResolvedValueOnce(editApproval as never)
+      .mockResolvedValueOnce({ ...editApproval, status: "APPROVED" } as never);
+
+    const mockTx = {
+      member: {
+        findUnique: vi.fn().mockResolvedValue({ userId: "user-1" }),
+        update: vi.fn().mockResolvedValue({}),
+      },
+      user: { update: vi.fn().mockResolvedValue({}) },
+      approval: { update: vi.fn().mockResolvedValue({}) },
+    };
+    vi.mocked(prisma.$transaction).mockImplementation(async (fn) => {
+      await fn(mockTx as never);
+    });
+
+    const result = await approveEntry("approval-1", { id: "admin-1", name: "Admin" });
+
+    expect(result.success).toBe(true);
+    expect(mockTx.member.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: "member-1" },
+        data: expect.objectContaining({ name: "Updated Name" }),
+      })
+    );
+    expect(mockTx.user.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: "user-1" },
+        data: expect.objectContaining({ name: "Updated Name" }),
+      })
+    );
+  });
+});
+
+describe("approveEntry — edit_sub_member approve", () => {
+  it("updates SubMember fields", async () => {
+    const subEditApproval = {
+      ...mockApproval,
+      entityType: "MEMBER_EDIT",
+      entityId: "sub-1",
+      action: "edit_sub_member",
+      newData: { name: "New Sub Name", canLogin: false },
+      status: "PENDING",
+    };
+
+    vi.mocked(prisma.approval.findUnique)
+      .mockResolvedValueOnce(subEditApproval as never)
+      .mockResolvedValueOnce({ ...subEditApproval, status: "APPROVED" } as never);
+
+    const mockTx = {
+      subMember: { update: vi.fn().mockResolvedValue({}) },
+      approval: { update: vi.fn().mockResolvedValue({}) },
+    };
+    vi.mocked(prisma.$transaction).mockImplementation(async (fn) => {
+      await fn(mockTx as never);
+    });
+
+    const result = await approveEntry("approval-1", { id: "admin-1", name: "Admin" });
+
+    expect(result.success).toBe(true);
+    expect(mockTx.subMember.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: "sub-1" },
+        data: expect.objectContaining({ name: "New Sub Name", canLogin: false }),
+      })
+    );
+  });
+});
+
+describe("approveEntry — MEMBER_DELETE approve", () => {
+  it("soft-deletes member by setting SUSPENDED", async () => {
+    const deleteApproval = {
+      ...mockApproval,
+      entityType: "MEMBER_DELETE",
+      entityId: "member-1",
+      action: "delete_member",
+      status: "PENDING",
+    };
+
+    vi.mocked(prisma.approval.findUnique)
+      .mockResolvedValueOnce(deleteApproval as never)
+      .mockResolvedValueOnce({ ...deleteApproval, status: "APPROVED" } as never);
+
+    const mockTx = {
+      member: {
+        findUnique: vi.fn().mockResolvedValue({ userId: "user-1" }),
+        update: vi.fn().mockResolvedValue({}),
+      },
+      user: { update: vi.fn().mockResolvedValue({}) },
+      approval: { update: vi.fn().mockResolvedValue({}) },
+    };
+    vi.mocked(prisma.$transaction).mockImplementation(async (fn) => {
+      await fn(mockTx as never);
+    });
+
+    const result = await approveEntry("approval-1", { id: "admin-1", name: "Admin" });
+
+    expect(result.success).toBe(true);
+    expect(mockTx.member.update).toHaveBeenCalledWith(
+      expect.objectContaining({ data: { membershipStatus: "SUSPENDED" } })
+    );
+    expect(mockTx.user.update).toHaveBeenCalledWith(
+      expect.objectContaining({ data: { membershipStatus: "SUSPENDED" } })
+    );
+  });
+});
+
+describe("approveEntry — remove_sub_member approve", () => {
+  it("hard-deletes sub-member", async () => {
+    const removeSubApproval = {
+      ...mockApproval,
+      entityType: "MEMBER_DELETE",
+      entityId: "sub-1",
+      action: "remove_sub_member",
+      status: "PENDING",
+    };
+
+    vi.mocked(prisma.approval.findUnique)
+      .mockResolvedValueOnce(removeSubApproval as never)
+      .mockResolvedValueOnce({ ...removeSubApproval, status: "APPROVED" } as never);
+
+    const mockTx = {
+      subMember: { delete: vi.fn().mockResolvedValue({}) },
+      approval: { update: vi.fn().mockResolvedValue({}) },
+    };
+    vi.mocked(prisma.$transaction).mockImplementation(async (fn) => {
+      await fn(mockTx as never);
+    });
+
+    const result = await approveEntry("approval-1", { id: "admin-1", name: "Admin" });
+
+    expect(result.success).toBe(true);
+    expect(mockTx.subMember.delete).toHaveBeenCalledWith({ where: { id: "sub-1" } });
+  });
+});
+
+describe("approveEntry — add_sub_member approve", () => {
+  it("creates SubMember with generated memberId and temp password", async () => {
+    const addSubApproval = {
+      ...mockApproval,
+      entityType: "MEMBER_ADD",
+      entityId: "parent-member-1",
+      action: "add_sub_member",
+      newData: {
+        name: "Sub Person",
+        email: "sub@example.com",
+        phone: "+919876543212",
+        relation: "SPOUSE",
+        parentUserId: "parent-user-1",
+        parentMemberId: "parent-member-1",
+      },
+      status: "PENDING",
+    };
+
+    vi.mocked(prisma.approval.findUnique)
+      .mockResolvedValueOnce(addSubApproval as never)
+      .mockResolvedValueOnce({ ...addSubApproval, status: "APPROVED" } as never);
+
+    const mockTx = {
+      user: { findUnique: vi.fn().mockResolvedValue({ memberId: "DPC-2026-0001-00" }) },
+      subMember: {
+        findMany: vi.fn().mockResolvedValue([]),
+        create: vi.fn().mockResolvedValue({ id: "new-sub" }),
+      },
+      member: { create: vi.fn().mockResolvedValue({ id: "new-child-member" }) },
+      approval: { update: vi.fn().mockResolvedValue({}) },
+    };
+    vi.mocked(prisma.$transaction).mockImplementation(async (fn) => {
+      await fn(mockTx as never);
+    });
+
+    const result = await approveEntry("approval-1", { id: "admin-1", name: "Admin" });
+
+    expect(result.success).toBe(true);
+    expect(mockTx.subMember.create).toHaveBeenCalled();
+    const createData = mockTx.subMember.create.mock.calls[0][0].data;
+    expect(createData.name).toBe("Sub Person");
+    expect(createData.isTempPassword).toBe(true);
+    expect(createData.canLogin).toBe(true);
+  });
+});
+
+describe("approveEntry — unknown entity type", () => {
+  it("returns 500 for unknown entity type", async () => {
+    const unknownApproval = {
+      ...mockApproval,
+      entityType: "UNKNOWN_TYPE",
+      status: "PENDING",
+    };
+
+    vi.mocked(prisma.approval.findUnique).mockResolvedValueOnce(unknownApproval as never);
+    vi.mocked(prisma.$transaction).mockImplementation(async (fn) => {
+      await fn({
+        approval: { update: vi.fn() },
+      } as never);
+    });
+
+    const result = await approveEntry("approval-1", { id: "admin-1", name: "Admin" });
+
+    expect(result.success).toBe(false);
+    expect(result.status).toBe(500);
+    expect(result.error).toMatch(/Unknown entity type/);
   });
 });

@@ -16,6 +16,7 @@ tsconfig.tsbuildinfo
 # misc
 .DS_Store
 *.pem
+.vscode/
 
 # debug
 npm-debug.log*
@@ -26,5 +27,19 @@ npm-debug.log*
 # vercel
 .vercel
 
+# coverage
+coverage/
+
+# database files
+*.db
+*.sqlite
+*.sqlite3
+*.dump
+*.pgdump
+*.db-journal
+
 # claude
 .claude/
+
+# codex
+.codex/

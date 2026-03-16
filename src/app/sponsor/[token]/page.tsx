@@ -261,7 +261,7 @@ export default function SponsorCheckoutPage({
           sponsorPurpose: linkData.purpose,
           ...(linkData.sponsorName ? { sponsorName: linkData.sponsorName } : {}),
         },
-        theme: { color: "#f97316" }, // orange-500 — saffron theme
+        theme: { color: "#0f172a" },
         handler: async (response) => {
           // Step 3: Verify payment
           try {
@@ -314,10 +314,10 @@ export default function SponsorCheckoutPage({
   // Loading skeleton
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-orange-50 to-amber-50 flex items-center justify-center p-4">
-        <div className="bg-white rounded-2xl shadow-lg p-8 w-full max-w-md text-center">
-          <LoaderIcon className="h-8 w-8 animate-spin text-orange-500 mx-auto mb-4" />
-          <p className="text-gray-500 text-sm">Loading payment details...</p>
+      <div className="flex min-h-screen items-center justify-center bg-[radial-gradient(circle_at_top,_rgba(56,189,248,0.2),_transparent_20rem),linear-gradient(180deg,#eff6ff_0%,#f8fafc_55%,#eef2ff_100%)] p-4">
+        <div className="w-full max-w-md rounded-[1.75rem] border border-white/80 bg-white/90 p-8 text-center shadow-[0_32px_80px_-40px_rgba(15,23,42,0.45)]">
+          <LoaderIcon className="mx-auto mb-4 h-8 w-8 animate-spin text-sky-500" />
+          <p className="text-sm text-slate-500">Loading payment details...</p>
         </div>
       </div>
     );
@@ -326,14 +326,14 @@ export default function SponsorCheckoutPage({
   // Not found
   if (errorMsg) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-orange-50 to-amber-50 flex items-center justify-center p-4">
-        <div className="bg-white rounded-2xl shadow-lg p-8 w-full max-w-md text-center">
-          <AlertCircleIcon className="h-12 w-12 text-red-400 mx-auto mb-4" />
-          <h1 className="text-xl font-bold text-gray-800 mb-2">Link Not Found</h1>
-          <p className="text-gray-500 text-sm mb-6">{errorMsg}</p>
+      <div className="flex min-h-screen items-center justify-center bg-[radial-gradient(circle_at_top,_rgba(56,189,248,0.2),_transparent_20rem),linear-gradient(180deg,#eff6ff_0%,#f8fafc_55%,#eef2ff_100%)] p-4">
+        <div className="w-full max-w-md rounded-[1.75rem] border border-white/80 bg-white/90 p-8 text-center shadow-[0_32px_80px_-40px_rgba(15,23,42,0.45)]">
+          <AlertCircleIcon className="mx-auto mb-4 h-12 w-12 text-rose-400" />
+          <h1 className="mb-2 text-xl font-bold text-slate-900">Link Not Found</h1>
+          <p className="mb-6 text-sm text-slate-500">{errorMsg}</p>
           <Link
             href="/"
-            className="inline-flex items-center gap-2 text-sm text-orange-600 hover:text-orange-700 font-medium"
+            className="inline-flex items-center gap-2 text-sm font-medium text-sky-700 hover:text-slate-900"
           >
             Return to Homepage
           </Link>
@@ -345,23 +345,23 @@ export default function SponsorCheckoutPage({
   // Expired or inactive (410)
   if (isGone && linkData) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-orange-50 to-amber-50 flex items-center justify-center p-4">
-        <div className="bg-white rounded-2xl shadow-lg p-8 w-full max-w-md text-center">
-          <AlertCircleIcon className="h-12 w-12 text-amber-400 mx-auto mb-4" />
-          <h1 className="text-xl font-bold text-gray-800 mb-2">
+      <div className="flex min-h-screen items-center justify-center bg-[radial-gradient(circle_at_top,_rgba(56,189,248,0.2),_transparent_20rem),linear-gradient(180deg,#eff6ff_0%,#f8fafc_55%,#eef2ff_100%)] p-4">
+        <div className="w-full max-w-md rounded-[1.75rem] border border-white/80 bg-white/90 p-8 text-center shadow-[0_32px_80px_-40px_rgba(15,23,42,0.45)]">
+          <AlertCircleIcon className="mx-auto mb-4 h-12 w-12 text-amber-400" />
+          <h1 className="mb-2 text-xl font-bold text-slate-900">
             {linkData.isExpired ? "Payment Link Expired" : "Payment Link Inactive"}
           </h1>
-          <p className="text-gray-500 text-sm mb-2">
+          <p className="mb-2 text-sm text-slate-500">
             {linkData.clubName}
           </p>
-          <p className="text-gray-400 text-sm mb-6">
+          <p className="mb-6 text-sm text-slate-400">
             {linkData.isExpired
               ? "This sponsorship payment link has expired. Please contact the club for a new link."
               : "This payment link has been deactivated. Please contact the club for assistance."}
           </p>
           <Link
             href="/"
-            className="inline-flex items-center gap-2 text-sm text-orange-600 hover:text-orange-700 font-medium"
+            className="inline-flex items-center gap-2 text-sm font-medium text-sky-700 hover:text-slate-900"
           >
             Return to Homepage
           </Link>
@@ -380,9 +380,9 @@ export default function SponsorCheckoutPage({
   const displayAmount = isFixedAmount ? linkData.amount! : parseFloat(customAmount) || 0;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-orange-50 via-amber-50 to-yellow-50">
+    <div className="min-h-screen bg-[radial-gradient(circle_at_top,_rgba(56,189,248,0.22),_transparent_24rem),linear-gradient(180deg,#eff6ff_0%,#f8fafc_55%,#eef2ff_100%)]">
       {/* Header bar */}
-      <div className="bg-gradient-to-r from-orange-600 via-orange-500 to-amber-500 py-4 px-6 shadow-md">
+      <div className="bg-gradient-to-r from-slate-950 via-slate-900 to-sky-700 px-6 py-4 shadow-md">
         <div className="max-w-lg mx-auto flex items-center justify-between">
           <div>
             <p className="text-white/80 text-xs uppercase tracking-widest font-medium">
@@ -405,29 +405,29 @@ export default function SponsorCheckoutPage({
           <div className="p-6 border-b border-gray-100">
             <div className="flex items-start justify-between mb-4">
               <div>
-                <span className="inline-block bg-orange-100 text-orange-700 text-xs font-semibold uppercase tracking-wide px-3 py-1 rounded-full mb-2">
+                <span className="mb-2 inline-block rounded-full bg-sky-100 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-sky-700">
                   {linkData.purposeLabel}
                 </span>
                 {linkData.sponsorName && (
                   <div className="mt-1">
-                    <p className="text-lg font-bold text-gray-900">{linkData.sponsorName}</p>
+                    <p className="text-lg font-bold text-slate-900">{linkData.sponsorName}</p>
                     {linkData.sponsorCompany && (
-                      <p className="text-sm text-gray-500">{linkData.sponsorCompany}</p>
+                      <p className="text-sm text-slate-500">{linkData.sponsorCompany}</p>
                     )}
                   </div>
                 )}
               </div>
               {isFixedAmount && (
                 <div className="text-right">
-                  <p className="text-xs text-gray-400 uppercase tracking-wide">Amount</p>
-                  <p className="text-2xl font-bold text-gray-900">
+                  <p className="text-xs uppercase tracking-wide text-slate-400">Amount</p>
+                  <p className="text-2xl font-bold text-slate-900">
                     {formatCurrency(linkData.amount!)}
                   </p>
                 </div>
               )}
             </div>
 
-            <p className="text-sm text-gray-600 leading-relaxed">
+            <p className="text-sm leading-relaxed text-slate-600">
               Your sponsorship supports the annual Durga Puja celebration at Deshapriya Park,
               one of Kolkata&apos;s most heritage-rich cultural festivities since 1938.
             </p>
@@ -435,12 +435,12 @@ export default function SponsorCheckoutPage({
 
           {/* Amount input (open-ended only) */}
           {!isFixedAmount && (
-            <div className="p-6 border-b border-gray-100">
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
+            <div className="border-b border-slate-100 p-6">
+              <label className="mb-2 block text-sm font-semibold text-slate-700">
                 Sponsorship Amount (INR) *
               </label>
               <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 font-medium text-lg">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-lg font-medium text-slate-400">
                   ₹
                 </span>
                 <input
@@ -453,7 +453,7 @@ export default function SponsorCheckoutPage({
                     setAmountError(null);
                   }}
                   placeholder="Enter amount"
-                  className="w-full pl-8 pr-4 py-3 border border-gray-300 rounded-lg text-lg font-semibold focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-orange-400"
+                  className="w-full rounded-xl border border-white/70 bg-white/80 py-3 pl-8 pr-4 text-lg font-semibold text-slate-900 focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-400"
                 />
               </div>
               {amountError && (
@@ -465,31 +465,31 @@ export default function SponsorCheckoutPage({
           {/* Payment methods */}
           <div className="p-6 space-y-4">
             {/* UPI section */}
-            <div className="bg-orange-50 border border-orange-200 rounded-xl p-4">
-              <h3 className="text-sm font-semibold text-gray-700 mb-3 uppercase tracking-wide">
+            <div className="rounded-xl border border-sky-200 bg-sky-50 p-4">
+              <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-700">
                 Option 1 — Pay via UPI
               </h3>
-              <div className="flex items-center gap-3 bg-white border border-orange-200 rounded-lg px-4 py-3">
+              <div className="flex items-center gap-3 rounded-lg border border-sky-200 bg-white px-4 py-3">
                 <div className="flex-1">
-                  <p className="text-xs text-gray-400 mb-1">UPI ID</p>
-                  <p className="text-base font-mono font-semibold text-gray-900">
+                  <p className="mb-1 text-xs text-slate-400">UPI ID</p>
+                  <p className="text-base font-mono font-semibold text-slate-900">
                     {linkData.upiId}
                   </p>
                 </div>
                 <button
                   type="button"
                   onClick={() => handleCopyUpi(linkData.upiId)}
-                  className="flex-shrink-0 p-2 rounded-lg bg-orange-100 hover:bg-orange-200 transition-colors"
+                  className="flex-shrink-0 rounded-lg bg-sky-100 p-2 transition-colors hover:bg-sky-200"
                   title="Copy UPI ID"
                 >
                   {copiedUpi ? (
-                    <CheckIcon className="h-4 w-4 text-green-600" />
+                    <CheckIcon className="h-4 w-4 text-emerald-600" />
                   ) : (
-                    <CopyIcon className="h-4 w-4 text-orange-600" />
+                    <CopyIcon className="h-4 w-4 text-sky-700" />
                   )}
                 </button>
               </div>
-              <p className="text-xs text-gray-500 mt-2">
+              <p className="mt-2 text-xs text-slate-500">
                 Open any UPI app (GPay, PhonePe, Paytm, BHIM) and pay to the UPI ID above.
               </p>
             </div>
@@ -499,31 +499,31 @@ export default function SponsorCheckoutPage({
               (linkData.bankDetails.accountNumber ||
                 linkData.bankDetails.bankName ||
                 linkData.bankDetails.ifscCode) && (
-              <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
-                <h3 className="text-sm font-semibold text-gray-700 mb-3 uppercase tracking-wide">
+              <div className="rounded-xl border border-indigo-200 bg-indigo-50/70 p-4">
+                <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-700">
                   Option 2 — Bank Transfer (NEFT/IMPS/RTGS)
                 </h3>
                 <div className="space-y-2 text-sm">
                   {linkData.bankDetails.accountNumber && (
                     <div className="flex justify-between">
-                      <span className="text-gray-500">Account Number</span>
-                      <span className="font-mono font-semibold text-gray-900">
+                      <span className="text-slate-500">Account Number</span>
+                      <span className="font-mono font-semibold text-slate-900">
                         {linkData.bankDetails.accountNumber}
                       </span>
                     </div>
                   )}
                   {linkData.bankDetails.ifscCode && (
                     <div className="flex justify-between">
-                      <span className="text-gray-500">IFSC Code</span>
-                      <span className="font-mono font-semibold text-gray-900">
+                      <span className="text-slate-500">IFSC Code</span>
+                      <span className="font-mono font-semibold text-slate-900">
                         {linkData.bankDetails.ifscCode}
                       </span>
                     </div>
                   )}
                   {linkData.bankDetails.bankName && (
                     <div className="flex justify-between">
-                      <span className="text-gray-500">Bank</span>
-                      <span className="font-semibold text-gray-900">
+                      <span className="text-slate-500">Bank</span>
+                      <span className="font-semibold text-slate-900">
                         {linkData.bankDetails.bankName}
                       </span>
                     </div>
@@ -534,20 +534,20 @@ export default function SponsorCheckoutPage({
 
             {/* Razorpay payment button */}
             <div className="pt-2">
-              <h3 className="text-sm font-semibold text-gray-700 mb-3 uppercase tracking-wide">
+              <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-700">
                 Option 3 — Pay Online via Razorpay
               </h3>
 
               {payError && (
-                <div className="mb-3 text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg p-3">
+                <div className="mb-3 rounded-lg border border-rose-200 bg-rose-50 p-3 text-sm text-rose-600">
                   {payError}
                 </div>
               )}
 
               {!isFixedAmount && displayAmount > 0 && (
-                <p className="text-sm text-gray-500 mb-3">
+                <p className="mb-3 text-sm text-slate-500">
                   You will be charged{" "}
-                  <span className="font-bold text-gray-800">{formatCurrency(displayAmount)}</span>
+                  <span className="font-bold text-slate-800">{formatCurrency(displayAmount)}</span>
                 </p>
               )}
 
@@ -555,7 +555,7 @@ export default function SponsorCheckoutPage({
                 type="button"
                 onClick={handlePayWithRazorpay}
                 disabled={paying || (!isFixedAmount && !customAmount)}
-                className="w-full bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 disabled:from-gray-300 disabled:to-gray-300 text-white font-bold py-4 px-6 rounded-xl text-base transition-all duration-200 shadow-md hover:shadow-lg disabled:cursor-not-allowed flex items-center justify-center gap-3"
+                className="flex w-full items-center justify-center gap-3 rounded-xl bg-gradient-to-r from-slate-950 to-sky-700 px-6 py-4 text-base font-bold text-white shadow-md transition-all duration-200 hover:shadow-lg hover:from-slate-900 hover:to-sky-600 disabled:cursor-not-allowed disabled:from-slate-300 disabled:to-slate-300"
               >
                 {paying ? (
                   <>
@@ -570,7 +570,7 @@ export default function SponsorCheckoutPage({
                 )}
               </button>
 
-              <p className="text-xs text-gray-400 text-center mt-3">
+              <p className="mt-3 text-center text-xs text-slate-400">
                 Secured by Razorpay. Supports UPI, cards, net banking &amp; wallets.
               </p>
             </div>
@@ -579,12 +579,12 @@ export default function SponsorCheckoutPage({
 
         {/* Footer */}
         <div className="text-center mt-6 pb-8 space-y-2">
-          <p className="text-xs text-gray-400">
+          <p className="text-xs text-slate-400">
             {linkData.clubName} — Est. 1938
           </p>
           <Link
             href="/"
-            className="inline-flex items-center gap-1 text-xs text-gray-400 hover:text-orange-500 transition-colors"
+            className="inline-flex items-center gap-1 text-xs text-slate-400 transition-colors hover:text-sky-600"
           >
             Return to Homepage
           </Link>

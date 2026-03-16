@@ -1,6 +1,6 @@
 # Testing Guide
 
-DPS Dashboard uses Vitest as the test runner with React Testing Library for component tests. Tests are organised into three categories: unit, integration, and component.
+Quorum uses Vitest as the test runner with React Testing Library for component tests. Tests are organised into three categories: unit, integration, and component.
 
 ---
 

@@ -16,7 +16,7 @@
  * wrapped in Suspense below.
  */
 
-import { Suspense, useState, FormEvent } from "react";
+import { Suspense, useState, useEffect, FormEvent } from "react";
 import { signIn } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
@@ -66,9 +66,17 @@ function LoginForm() {
   // Preserve the callbackUrl if set (e.g. redirect after auth)
   const callbackUrl = searchParams.get("callbackUrl") ?? "/dashboard";
 
+  // Reset cursor on unmount (navigation away from login page)
+  useEffect(() => {
+    return () => {
+      document.body.style.cursor = "";
+    };
+  }, []);
+
   async function doSignIn(emailValue: string, passwordValue: string) {
     setError(null);
     setLoading(true);
+    document.body.style.cursor = "wait";
 
     try {
       const result = await signIn("credentials", {
@@ -79,24 +87,29 @@ function LoginForm() {
 
       if (!result) {
         setError("An unexpected error occurred. Please try again.");
+        setLoading(false);
+        document.body.style.cursor = "";
         return;
       }
 
       if (result.error) {
         // Generic message — do not reveal whether email exists
         setError("Invalid email or password.");
+        setLoading(false);
+        document.body.style.cursor = "";
         return;
       }
 
-      // Fetch updated session to check isTempPassword.
-      // NextAuth sets the cookie; we need a page refresh to read it.
-      // The middleware will redirect to /change-password if isTempPassword is true.
+      // Success — keep loading=true and cursor=wait so the UI stays
+      // locked while the router navigates to the dashboard.
+      // NextAuth sets the cookie; the middleware will redirect to
+      // /change-password if isTempPassword is true.
       router.push(callbackUrl);
       router.refresh();
     } catch {
       setError("An unexpected error occurred. Please try again.");
-    } finally {
       setLoading(false);
+      document.body.style.cursor = "";
     }
   }
 
@@ -112,9 +125,9 @@ function LoginForm() {
   }
 
   return (
-    <Card className="shadow-lg">
+    <Card className="border-white/80 bg-white/85 shadow-[0_30px_80px_-40px_rgba(15,23,42,0.45)]">
       <CardHeader className="space-y-1">
-        <CardTitle className="text-xl">Sign in</CardTitle>
+        <CardTitle className="text-xl tracking-tight">Sign in</CardTitle>
         <CardDescription>
           Enter your registered email and password to access the dashboard.
         </CardDescription>
@@ -124,7 +137,7 @@ function LoginForm() {
         <CardContent className="space-y-4">
           {/* Error message */}
           {error && (
-            <div className="rounded-md bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">
+            <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
               {error}
             </div>
           )}
@@ -161,8 +174,8 @@ function LoginForm() {
 
           {/* Test mode auto-fill section */}
           {isTestMode && (
-            <div className="rounded-md border border-dashed border-slate-300 bg-slate-50 px-4 py-3 space-y-2">
-              <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">
+            <div className="space-y-2 rounded-2xl border border-dashed border-sky-200 bg-sky-50/70 px-4 py-3">
+              <p className="text-xs font-semibold uppercase tracking-[0.22em] text-sky-700">
                 Test accounts — development only
               </p>
               <div className="flex flex-wrap gap-2">
@@ -174,7 +187,7 @@ function LoginForm() {
                       handleTestLogin(account.email, account.password)
                     }
                     disabled={loading}
-                    className="inline-flex items-center rounded-md border border-slate-200 bg-white px-2.5 py-1 text-xs font-medium text-slate-600 shadow-sm hover:bg-slate-100 hover:text-slate-900 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    className="inline-flex items-center rounded-xl border border-white bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-600 shadow-sm transition-colors hover:bg-sky-50 hover:text-slate-900 disabled:cursor-wait disabled:opacity-50"
                   >
                     {account.label}
                   </button>
@@ -195,7 +208,7 @@ function LoginForm() {
 
           <Link
             href="/"
-            className="text-sm text-slate-500 hover:text-slate-700 text-center"
+            className="text-center text-sm text-slate-500 hover:text-sky-700"
           >
             Back to home
           </Link>
@@ -211,15 +224,14 @@ function LoginForm() {
 
 export default function LoginPage() {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100 p-4">
+    <div className="flex min-h-screen items-center justify-center bg-[radial-gradient(circle_at_top,_rgba(56,189,248,0.22),_transparent_20rem),linear-gradient(180deg,#eff6ff_0%,#f8fafc_45%,#eef2ff_100%)] p-4">
       <div className="w-full max-w-md">
-        {/* Club branding */}
-        <div className="text-center mb-8">
+        <div className="mb-8 text-center">
           <Link href="/" className="inline-block">
-            <h1 className="text-2xl font-bold text-slate-900">
+            <h1 className="text-2xl font-bold tracking-tight text-slate-900">
               Deshapriya Park Durga Puja Club
             </h1>
-            <p className="text-sm text-slate-500 mt-1">
+            <p className="mt-1 text-sm uppercase tracking-[0.22em] text-sky-700">
               Management Dashboard
             </p>
           </Link>
@@ -227,7 +239,7 @@ export default function LoginPage() {
 
         <Suspense
           fallback={
-            <Card className="shadow-lg">
+            <Card className="border-white/80 bg-white/85 shadow-[0_30px_80px_-40px_rgba(15,23,42,0.45)]">
               <CardContent className="py-8 text-center text-sm text-slate-500">
                 Loading...
               </CardContent>

@@ -392,12 +392,12 @@ export default function SponsorshipPage() {
   const totalContributions = sponsors.reduce((s, sp) => s + sp.totalContributions, 0);
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="space-y-6 p-6">
       {/* Header */}
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Sponsorship Management</h1>
-          <p className="text-sm text-gray-500 mt-1">
+          <h1 className="text-2xl font-bold tracking-tight text-slate-900">Sponsorship Management</h1>
+          <p className="mt-1 text-sm text-slate-500">
             Manage sponsors and generate payment links
           </p>
         </div>
@@ -424,7 +424,7 @@ export default function SponsorshipPage() {
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-gray-500 flex items-center gap-2">
+            <CardTitle className="flex items-center gap-2 text-sm font-medium text-slate-500">
               <UsersIcon className="h-4 w-4" /> Total Sponsors
             </CardTitle>
           </CardHeader>
@@ -434,24 +434,24 @@ export default function SponsorshipPage() {
         </Card>
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-gray-500 flex items-center gap-2">
+            <CardTitle className="flex items-center gap-2 text-sm font-medium text-slate-500">
               <BuildingIcon className="h-4 w-4" /> Total Contributions
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-green-600">
+            <div className="text-2xl font-bold text-emerald-600">
               {formatCurrency(totalContributions)}
             </div>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-gray-500 flex items-center gap-2">
+            <CardTitle className="flex items-center gap-2 text-sm font-medium text-slate-500">
               <LinkIcon className="h-4 w-4" /> Active Links
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-blue-600">
+            <div className="text-2xl font-bold text-sky-600">
               {links.filter((l) => l.isActive).length}
             </div>
           </CardContent>
@@ -479,7 +479,7 @@ export default function SponsorshipPage() {
             </Button>
           </div>
 
-          <div className="overflow-x-auto rounded-md border bg-white">
+          <div className="overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -494,13 +494,13 @@ export default function SponsorshipPage() {
               <TableBody>
                 {sponsorsLoading ? (
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center text-gray-500 py-8">
+                    <TableCell colSpan={6} className="py-8 text-center text-slate-500">
                       Loading...
                     </TableCell>
                   </TableRow>
                 ) : sponsors.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center text-gray-500 py-8">
+                    <TableCell colSpan={6} className="py-8 text-center text-slate-500">
                       No sponsors found
                     </TableCell>
                   </TableRow>
@@ -508,13 +508,13 @@ export default function SponsorshipPage() {
                   sponsors.map((sponsor) => (
                     <TableRow key={sponsor.id}>
                       <TableCell className="font-medium">{sponsor.name}</TableCell>
-                      <TableCell>{sponsor.company ?? <span className="text-gray-400">—</span>}</TableCell>
+                      <TableCell>{sponsor.company ?? <span className="text-slate-400">—</span>}</TableCell>
                       <TableCell className="font-mono text-sm">{sponsor.phone}</TableCell>
                       <TableCell>{sponsor.email}</TableCell>
                       <TableCell className="text-right font-semibold">
                         {sponsor.totalContributions > 0
-                          ? <span className="text-green-700">{formatCurrency(sponsor.totalContributions)}</span>
-                          : <span className="text-gray-400">—</span>
+                          ? <span className="text-emerald-700">{formatCurrency(sponsor.totalContributions)}</span>
+                          : <span className="text-slate-400">—</span>
                         }
                       </TableCell>
                       <TableCell className="text-right">
@@ -542,7 +542,7 @@ export default function SponsorshipPage() {
                               size="icon"
                               onClick={() => handleDeleteSponsor(sponsor)}
                               title="Delete"
-                              className="text-red-500 hover:text-red-700"
+                              className="text-rose-500 hover:text-rose-700"
                             >
                               <TrashIcon className="h-4 w-4" />
                             </Button>
@@ -559,7 +559,7 @@ export default function SponsorshipPage() {
           {/* Sponsors pagination */}
           {Math.ceil(sponsorsTotal / LIMIT) > 1 && (
             <div className="flex items-center justify-between mt-4">
-              <p className="text-sm text-gray-500">
+              <p className="text-sm text-slate-500">
                 Showing {(sponsorsPage - 1) * LIMIT + 1}–{Math.min(sponsorsPage * LIMIT, sponsorsTotal)} of {sponsorsTotal}
               </p>
               <div className="flex gap-2">
@@ -592,7 +592,7 @@ export default function SponsorshipPage() {
             </Button>
           </div>
 
-          <div className="overflow-x-auto rounded-md border bg-white">
+          <div className="overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -609,13 +609,13 @@ export default function SponsorshipPage() {
               <TableBody>
                 {linksLoading ? (
                   <TableRow>
-                    <TableCell colSpan={8} className="text-center text-gray-500 py-8">
+                    <TableCell colSpan={8} className="py-8 text-center text-slate-500">
                       Loading...
                     </TableCell>
                   </TableRow>
                 ) : links.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={8} className="text-center text-gray-500 py-8">
+                    <TableCell colSpan={8} className="py-8 text-center text-slate-500">
                       No sponsor links found
                     </TableCell>
                   </TableRow>
@@ -625,16 +625,16 @@ export default function SponsorshipPage() {
                       link.expiresAt != null &&
                       new Date(link.expiresAt) < new Date();
                     const statusBadge = !link.isActive ? (
-                      <Badge variant="outline" className="text-gray-500">Inactive</Badge>
+                      <Badge variant="outline" className="text-slate-500">Inactive</Badge>
                     ) : isExpired ? (
-                      <Badge variant="outline" className="text-orange-600 border-orange-300">Expired</Badge>
+                      <Badge variant="outline" className="border-amber-300 text-amber-700">Expired</Badge>
                     ) : (
-                      <Badge className="bg-green-100 text-green-700 hover:bg-green-100">Active</Badge>
+                      <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100">Active</Badge>
                     );
 
                     return (
                       <TableRow key={link.id}>
-                        <TableCell className="font-mono text-xs text-gray-600">
+                        <TableCell className="font-mono text-xs text-slate-600">
                           {link.token.substring(0, 8)}...
                         </TableCell>
                         <TableCell>
@@ -642,11 +642,11 @@ export default function SponsorshipPage() {
                             <div>
                               <div className="font-medium text-sm">{link.sponsor.name}</div>
                               {link.sponsor.company && (
-                                <div className="text-xs text-gray-500">{link.sponsor.company}</div>
+                                <div className="text-xs text-slate-500">{link.sponsor.company}</div>
                               )}
                             </div>
                           ) : (
-                            <span className="text-gray-400 text-sm">Generic</span>
+                            <span className="text-sm text-slate-400">Generic</span>
                           )}
                         </TableCell>
                         <TableCell>
@@ -655,14 +655,14 @@ export default function SponsorshipPage() {
                         <TableCell className="text-right">
                           {link.amount
                             ? formatCurrency(Number(link.amount))
-                            : <span className="text-gray-400 text-sm">Open</span>
+                            : <span className="text-sm text-slate-400">Open</span>
                           }
                         </TableCell>
                         <TableCell>{statusBadge}</TableCell>
                         <TableCell className="text-sm">
-                          {link.expiresAt ? formatDate(link.expiresAt) : <span className="text-gray-400">—</span>}
+                          {link.expiresAt ? formatDate(link.expiresAt) : <span className="text-slate-400">—</span>}
                         </TableCell>
-                        <TableCell className="text-sm text-gray-500">
+                        <TableCell className="text-sm text-slate-500">
                           {formatDate(link.createdAt)}
                         </TableCell>
                         <TableCell className="text-right">
@@ -681,7 +681,7 @@ export default function SponsorshipPage() {
                                 size="icon"
                                 title="Deactivate"
                                 onClick={() => handleDeactivateLink(link)}
-                                className="text-red-500 hover:text-red-700"
+                                className="text-rose-500 hover:text-rose-700"
                               >
                                 <XCircleIcon className="h-4 w-4" />
                               </Button>
@@ -699,7 +699,7 @@ export default function SponsorshipPage() {
           {/* Links pagination */}
           {Math.ceil(linksTotal / LIMIT) > 1 && (
             <div className="flex items-center justify-between mt-4">
-              <p className="text-sm text-gray-500">
+              <p className="text-sm text-slate-500">
                 Showing {(linksPage - 1) * LIMIT + 1}–{Math.min(linksPage * LIMIT, linksTotal)} of {linksTotal}
               </p>
               <div className="flex gap-2">
@@ -736,7 +736,7 @@ export default function SponsorshipPage() {
           </DialogHeader>
           <div className="space-y-4 py-2">
             {formError && (
-              <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded p-2">
+              <div className="rounded-xl border border-rose-200 bg-rose-50 p-2 text-sm text-rose-600">
                 {formError}
               </div>
             )}
@@ -798,7 +798,7 @@ export default function SponsorshipPage() {
           </DialogHeader>
           <div className="space-y-4 py-2">
             {formError && (
-              <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded p-2">
+              <div className="rounded-xl border border-rose-200 bg-rose-50 p-2 text-sm text-rose-600">
                 {formError}
               </div>
             )}
@@ -866,7 +866,7 @@ export default function SponsorshipPage() {
           {generatedUrl ? (
             /* ---- Success view after link generated ---- */
             <div className="space-y-4 py-2">
-              <div className="text-sm text-green-700 bg-green-50 border border-green-200 rounded p-3 font-medium">
+              <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm font-medium text-emerald-700">
                 Payment link generated successfully!
               </div>
               <div className="space-y-2">
@@ -875,7 +875,7 @@ export default function SponsorshipPage() {
                   <Input
                     readOnly
                     value={generatedUrl}
-                    className="font-mono text-sm bg-gray-50"
+                    className="bg-slate-50 font-mono text-sm"
                   />
                   <Button
                     variant="outline"
@@ -883,10 +883,10 @@ export default function SponsorshipPage() {
                     onClick={() => copyUrl(generatedUrl)}
                     title="Copy"
                   >
-                    {copiedUrl ? <CheckIcon className="h-4 w-4 text-green-600" /> : <CopyIcon className="h-4 w-4" />}
+                    {copiedUrl ? <CheckIcon className="h-4 w-4 text-emerald-600" /> : <CopyIcon className="h-4 w-4" />}
                   </Button>
                 </div>
-                <p className="text-xs text-gray-500">
+                <p className="text-xs text-slate-500">
                   Share this link with the sponsor. They can pay via UPI or bank transfer.
                 </p>
               </div>
@@ -895,7 +895,7 @@ export default function SponsorshipPage() {
             /* ---- Form view ---- */
             <div className="space-y-4 py-2">
               {formError && (
-                <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded p-2">
+                <div className="rounded-xl border border-rose-200 bg-rose-50 p-2 text-sm text-rose-600">
                   {formError}
                 </div>
               )}
@@ -946,8 +946,8 @@ export default function SponsorshipPage() {
               </div>
 
               {/* Bank Details (optional section) */}
-              <div className="border rounded p-3 space-y-3 bg-gray-50">
-                <p className="text-xs font-medium text-gray-600 uppercase tracking-wide">
+              <div className="space-y-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
+                <p className="text-xs font-medium uppercase tracking-wide text-slate-600">
                   Bank Transfer Details (optional)
                 </p>
                 <div className="grid grid-cols-2 gap-2">

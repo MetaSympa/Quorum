@@ -320,128 +320,279 @@ describe("transactionListQuerySchema", () => {
 });
 
 // ---------------------------------------------------------------------------
-// Business rule: Razorpay-sourced guard
+// Service-level tests (mocked Prisma)
 // ---------------------------------------------------------------------------
 
-describe("Razorpay-sourced transaction guard", () => {
-  /**
-   * The service checks existing.approvalSource === "RAZORPAY_WEBHOOK" before
-   * allowing edits or deletes. We test the guard logic itself (not the DB call).
-   */
+import { vi, beforeEach } from "vitest";
+import { Prisma } from "@prisma/client";
 
-  function guardCheck(approvalSource: string): boolean {
-    return approvalSource === "RAZORPAY_WEBHOOK";
-  }
+vi.mock("@/lib/prisma", () => ({
+  prisma: {
+    transaction: { findMany: vi.fn(), findUnique: vi.fn(), create: vi.fn(), update: vi.fn(), count: vi.fn(), aggregate: vi.fn() },
+    approval: { create: vi.fn() },
+    $transaction: vi.fn(),
+  },
+}));
+vi.mock("@/lib/audit", () => ({
+  buildTransactionAuditSnapshot: vi.fn().mockReturnValue({}),
+  logAudit: vi.fn(),
+  logActivity: vi.fn(),
+}));
 
-  it("blocks edit when approvalSource is RAZORPAY_WEBHOOK", () => {
-    expect(guardCheck("RAZORPAY_WEBHOOK")).toBe(true);
+import { prisma } from "@/lib/prisma";
+const mockPrisma = vi.mocked(prisma);
+
+import {
+  listTransactions,
+  getTransaction,
+  createTransaction,
+  updateTransaction,
+  deleteTransaction,
+  getTransactionSummary,
+} from "@/lib/services/transaction-service";
+
+const admin = { id: "admin-1", role: "ADMIN", name: "Admin" };
+const operator = { id: "op-1", role: "OPERATOR", name: "Operator" };
+
+const validInput = {
+  type: "CASH_IN" as const,
+  category: "MEMBERSHIP_FEE",
+  amount: 250,
+  paymentMode: "UPI",
+  description: "Test transaction",
+};
+
+const existingTransaction = {
+  id: "txn-1",
+  type: "CASH_IN",
+  category: "MEMBERSHIP_FEE",
+  amount: new Prisma.Decimal(250),
+  paymentMode: "UPI",
+  description: "Test",
+  approvalStatus: "APPROVED",
+  approvalSource: "MANUAL",
+  sponsorPurpose: null,
+  memberId: null,
+  sponsorId: null,
+  senderName: null,
+  senderPhone: null,
+};
+
+const razorpayTransaction = {
+  ...existingTransaction,
+  id: "txn-rp",
+  approvalSource: "RAZORPAY_WEBHOOK",
+};
+
+beforeEach(() => {
+  vi.clearAllMocks();
+  mockPrisma.$transaction.mockImplementation(async (cb: (tx: typeof mockPrisma) => Promise<unknown>) => cb(mockPrisma));
+});
+
+// ---------------------------------------------------------------------------
+// createTransaction
+// ---------------------------------------------------------------------------
+
+describe("createTransaction — service", () => {
+  it("admin creates auto-approved transaction with MANUAL source", async () => {
+    const created = { ...existingTransaction, id: "txn-new", member: null, sponsor: null, enteredBy: { id: "admin-1", name: "Admin", email: "a@a.com" }, approvedBy: null };
+    mockPrisma.transaction.create.mockResolvedValue(created);
+
+    const result = await createTransaction(validInput, admin);
+
+    expect(result.success).toBe(true);
+    expect(result.action).toBe("direct");
+    expect(result.status).toBe(201);
+    const createData = mockPrisma.transaction.create.mock.calls[0][0].data;
+    expect(createData.approvalStatus).toBe("APPROVED");
+    expect(createData.approvalSource).toBe("MANUAL");
+    expect(createData.approvedById).toBe("admin-1");
   });
 
-  it("allows edit when approvalSource is MANUAL", () => {
-    expect(guardCheck("MANUAL")).toBe(false);
+  it("operator creates approval record instead of writing transaction", async () => {
+    mockPrisma.approval.create.mockResolvedValue({ id: "approval-1" });
+
+    const result = await createTransaction(validInput, operator);
+
+    expect(result.success).toBe(true);
+    expect(result.action).toBe("pending_approval");
+    expect(mockPrisma.transaction.create).not.toHaveBeenCalled();
   });
 });
 
 // ---------------------------------------------------------------------------
-// Approval gating logic
+// updateTransaction
 // ---------------------------------------------------------------------------
 
-describe("Transaction approval gating", () => {
-  /**
-   * Simulates the role-based branching in transaction-service.ts.
-   * ADMIN → "direct", OPERATOR → "pending_approval"
-   */
+describe("updateTransaction — service", () => {
+  it("admin updates directly", async () => {
+    mockPrisma.transaction.findUnique.mockResolvedValue(existingTransaction);
+    mockPrisma.transaction.update.mockResolvedValue({});
 
-  function determineAction(role: string): "direct" | "pending_approval" {
-    return role === "OPERATOR" ? "pending_approval" : "direct";
-  }
+    const result = await updateTransaction("txn-1", { description: "Updated" }, admin);
 
-  it("returns direct for ADMIN", () => {
-    expect(determineAction("ADMIN")).toBe("direct");
+    expect(result.success).toBe(true);
+    expect(result.action).toBe("direct");
   });
 
-  it("returns pending_approval for OPERATOR", () => {
-    expect(determineAction("OPERATOR")).toBe("pending_approval");
+  it("operator creates approval for edit", async () => {
+    mockPrisma.transaction.findUnique.mockResolvedValue(existingTransaction);
+    mockPrisma.approval.create.mockResolvedValue({ id: "approval-2" });
+
+    const result = await updateTransaction("txn-1", { description: "Updated" }, operator);
+
+    expect(result.success).toBe(true);
+    expect(result.action).toBe("pending_approval");
   });
 
-  it("returns direct for any non-operator role", () => {
-    expect(determineAction("MEMBER")).toBe("direct");
+  it("blocks edit on Razorpay-sourced transaction (403)", async () => {
+    mockPrisma.transaction.findUnique.mockResolvedValue(razorpayTransaction);
+
+    const result = await updateTransaction("txn-rp", { description: "Hack" }, admin);
+
+    expect(result.success).toBe(false);
+    expect(result.status).toBe(403);
+    expect(result.error).toMatch(/Razorpay/);
+  });
+
+  it("returns 404 for non-existent transaction", async () => {
+    mockPrisma.transaction.findUnique.mockResolvedValue(null);
+    const result = await updateTransaction("bad", { description: "X" }, admin);
+    expect(result.success).toBe(false);
+    expect(result.status).toBe(404);
   });
 });
 
 // ---------------------------------------------------------------------------
-// Currency formatting
+// deleteTransaction
 // ---------------------------------------------------------------------------
 
-describe("Currency formatting", () => {
-  function formatCurrency(value: number): string {
-    return new Intl.NumberFormat("en-IN", {
-      style: "currency",
-      currency: "INR",
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    }).format(value);
-  }
+describe("deleteTransaction — service", () => {
+  it("admin soft-deletes by setting approvalStatus=REJECTED", async () => {
+    mockPrisma.transaction.findUnique.mockResolvedValue(existingTransaction);
 
-  it("formats whole numbers correctly", () => {
-    const result = formatCurrency(1000);
-    expect(result).toContain("1,000");
-    expect(result).toContain("00");
+    const result = await deleteTransaction("txn-1", admin);
+
+    expect(result.success).toBe(true);
+    expect(result.action).toBe("direct");
+    expect(mockPrisma.transaction.update).toHaveBeenCalledWith(
+      expect.objectContaining({ data: { approvalStatus: "REJECTED" } })
+    );
   });
 
-  it("formats decimals correctly", () => {
-    const result = formatCurrency(1234.56);
-    expect(result).toContain("1,234");
-    expect(result).toContain("56");
+  it("operator creates approval for delete", async () => {
+    mockPrisma.transaction.findUnique.mockResolvedValue(existingTransaction);
+    mockPrisma.approval.create.mockResolvedValue({ id: "approval-3" });
+
+    const result = await deleteTransaction("txn-1", operator);
+
+    expect(result.success).toBe(true);
+    expect(result.action).toBe("pending_approval");
   });
 
-  it("formats zero correctly", () => {
-    const result = formatCurrency(0);
-    expect(result).toContain("0");
+  it("blocks delete on Razorpay-sourced transaction (403)", async () => {
+    mockPrisma.transaction.findUnique.mockResolvedValue(razorpayTransaction);
+
+    const result = await deleteTransaction("txn-rp", admin);
+
+    expect(result.success).toBe(false);
+    expect(result.status).toBe(403);
+    expect(result.error).toMatch(/Razorpay/);
   });
 
-  it("formats negative numbers correctly", () => {
-    const result = formatCurrency(-500);
-    expect(result).toContain("500");
+  it("returns 404 for non-existent transaction", async () => {
+    mockPrisma.transaction.findUnique.mockResolvedValue(null);
+    const result = await deleteTransaction("bad", admin);
+    expect(result.success).toBe(false);
+    expect(result.status).toBe(404);
   });
 });
 
 // ---------------------------------------------------------------------------
-// Summary computation
+// getTransactionSummary
 // ---------------------------------------------------------------------------
 
-describe("Summary computation", () => {
-  function computeSummary(
-    income: number,
-    expenses: number,
-    pending: number
-  ): { totalIncome: number; totalExpenses: number; pendingAmount: number; netBalance: number } {
-    return {
-      totalIncome: income,
-      totalExpenses: expenses,
-      pendingAmount: pending,
-      netBalance: income - expenses,
-    };
-  }
+describe("getTransactionSummary — math", () => {
+  it("computes correct totals", async () => {
+    mockPrisma.transaction.aggregate
+      .mockResolvedValueOnce({ _sum: { amount: new Prisma.Decimal(5000) } })
+      .mockResolvedValueOnce({ _sum: { amount: new Prisma.Decimal(2000) } })
+      .mockResolvedValueOnce({ _sum: { amount: new Prisma.Decimal(1000) } });
 
-  it("computes positive net balance", () => {
-    const s = computeSummary(10000, 3000, 500);
-    expect(s.netBalance).toBe(7000);
+    const result = await getTransactionSummary();
+
+    expect(result.success).toBe(true);
+    expect(result.data!.totalIncome).toBe(5000);
+    expect(result.data!.totalExpenses).toBe(2000);
+    expect(result.data!.pendingAmount).toBe(1000);
+    expect(result.data!.netBalance).toBe(3000);
   });
 
-  it("computes zero net balance when equal", () => {
-    const s = computeSummary(5000, 5000, 0);
-    expect(s.netBalance).toBe(0);
+  it("handles null sums (no transactions)", async () => {
+    mockPrisma.transaction.aggregate
+      .mockResolvedValueOnce({ _sum: { amount: null } })
+      .mockResolvedValueOnce({ _sum: { amount: null } })
+      .mockResolvedValueOnce({ _sum: { amount: null } });
+
+    const result = await getTransactionSummary();
+
+    expect(result.data!.totalIncome).toBe(0);
+    expect(result.data!.totalExpenses).toBe(0);
+    expect(result.data!.netBalance).toBe(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// listTransactions — filter/date behavior
+// ---------------------------------------------------------------------------
+
+describe("listTransactions — filters", () => {
+  beforeEach(() => {
+    mockPrisma.transaction.findMany.mockResolvedValue([]);
+    mockPrisma.transaction.count.mockResolvedValue(0);
   });
 
-  it("computes negative net balance when expenses exceed income", () => {
-    const s = computeSummary(2000, 5000, 0);
-    expect(s.netBalance).toBe(-3000);
+  it("returns paginated results", async () => {
+    const result = await listTransactions({ page: 1, limit: 10 });
+    expect(result.success).toBe(true);
+    expect(result.data!.data).toEqual([]);
   });
 
-  it("includes pending amount separately (not in net balance)", () => {
-    const s = computeSummary(10000, 3000, 2000);
-    expect(s.pendingAmount).toBe(2000);
-    expect(s.netBalance).toBe(7000); // pending doesn't affect net balance
+  it("applies type filter", async () => {
+    await listTransactions({ type: "CASH_IN", page: 1, limit: 10 });
+    const where = mockPrisma.transaction.findMany.mock.calls[0][0].where;
+    expect(where.type).toBe("CASH_IN");
+  });
+
+  it("applies date range with end-of-day for dateTo", async () => {
+    await listTransactions({ dateFrom: "2026-01-01", dateTo: "2026-01-31", page: 1, limit: 10 });
+    const where = mockPrisma.transaction.findMany.mock.calls[0][0].where;
+    expect(where.createdAt.gte).toBeInstanceOf(Date);
+    expect(where.createdAt.lte.getHours()).toBe(23);
+  });
+
+  it("applies status filter as approvalStatus", async () => {
+    await listTransactions({ status: "PENDING", page: 1, limit: 10 });
+    const where = mockPrisma.transaction.findMany.mock.calls[0][0].where;
+    expect(where.approvalStatus).toBe("PENDING");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// getTransaction
+// ---------------------------------------------------------------------------
+
+describe("getTransaction — service", () => {
+  it("returns transaction when found", async () => {
+    mockPrisma.transaction.findUnique.mockResolvedValue(existingTransaction);
+    const result = await getTransaction("txn-1");
+    expect(result.success).toBe(true);
+  });
+
+  it("returns 404 when not found", async () => {
+    mockPrisma.transaction.findUnique.mockResolvedValue(null);
+    const result = await getTransaction("bad");
+    expect(result.success).toBe(false);
+    expect(result.status).toBe(404);
   });
 });

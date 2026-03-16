@@ -1,6 +1,6 @@
-# DPS Dashboard — Task Board
-> Last updated: 2026-03-15
-> Tracks all 42 tickets across 8 phases. Check off tasks as they complete.
+# DPS Dashboard — Task Board (FROZEN)
+> **FROZEN — Project shipped 2026-03-15. This is a historical record.**
+> Tracks all 42 tickets across 8 phases.
 
 ---
 

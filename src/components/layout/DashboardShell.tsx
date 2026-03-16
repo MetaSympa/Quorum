@@ -35,20 +35,16 @@ interface DashboardShellProps {
  */
 export default function DashboardShell({ children, user }: DashboardShellProps) {
   return (
-    <div className="flex min-h-screen bg-background">
-      {/* Desktop sidebar — hidden on mobile via lg:flex */}
-      <aside className="hidden lg:flex lg:w-64 lg:shrink-0 lg:flex-col lg:fixed lg:inset-y-0 lg:z-40">
+    <div className="flex min-h-screen bg-transparent">
+      <aside className="hidden lg:fixed lg:inset-y-0 lg:left-0 lg:z-40 lg:flex lg:w-72 lg:shrink-0 lg:flex-col">
         <Sidebar user={user} />
       </aside>
 
-      {/* Main content column — offset by sidebar width on desktop */}
-      <div className="flex flex-1 flex-col lg:pl-64">
-        {/* Sticky header (contains mobile hamburger + user menu) */}
+      <div className="relative flex flex-1 flex-col lg:pl-72">
         <Header user={user} />
 
-        {/* Page content */}
-        <main className="flex-1 px-4 py-6 lg:px-6 lg:py-8">
-          {children}
+        <main className="flex-1 px-4 pb-8 pt-20 lg:px-8 lg:pb-10 lg:pt-10">
+          <div className="mx-auto w-full max-w-[1600px]">{children}</div>
         </main>
       </div>
     </div>

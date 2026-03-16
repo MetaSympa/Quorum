@@ -8,7 +8,6 @@
  *   - isTestMode
  *   - Order amount calculation per membership type
  *   - createOrderSchema + verifyPaymentSchema Zod validation
- *   - Idempotency check (duplicate paymentId)
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
@@ -400,56 +399,5 @@ describe("verifyPaymentSchema", () => {
       razorpay_signature: "abcdef1234567890",
     });
     expect(result.success).toBe(false);
-  });
-});
-
-// ---------------------------------------------------------------------------
-// Idempotency check logic
-// ---------------------------------------------------------------------------
-
-describe("Idempotency check", () => {
-  it("same paymentId should not produce duplicate transactions (logic test)", () => {
-    // This tests the business rule: if razorpayPaymentId already exists
-    // in the Transaction table, skip processing.
-    // The actual DB check is in handlePaymentCaptured() in the webhook handler.
-    // Here we verify the logic concept using a Set to simulate the check.
-    const processedPayments = new Set<string>();
-
-    function wouldProcess(paymentId: string): boolean {
-      if (processedPayments.has(paymentId)) return false;
-      processedPayments.add(paymentId);
-      return true;
-    }
-
-    expect(wouldProcess("pay_abc123")).toBe(true); // first time: process
-    expect(wouldProcess("pay_abc123")).toBe(false); // second time: skip (idempotent)
-    expect(wouldProcess("pay_xyz789")).toBe(true); // different payment: process
-  });
-});
-
-// ---------------------------------------------------------------------------
-// Payment-to-transaction field mapping
-// ---------------------------------------------------------------------------
-
-describe("Payment method to PaymentMode mapping", () => {
-  // Test the mapping logic as implemented in the webhook handler
-  function mapMethodToPaymentMode(method: string): "UPI" | "BANK_TRANSFER" {
-    if (method === "upi") return "UPI";
-    if (method === "bank_transfer") return "BANK_TRANSFER";
-    return "UPI";
-  }
-
-  it("maps 'upi' → UPI", () => {
-    expect(mapMethodToPaymentMode("upi")).toBe("UPI");
-  });
-
-  it("maps 'bank_transfer' → BANK_TRANSFER", () => {
-    expect(mapMethodToPaymentMode("bank_transfer")).toBe("BANK_TRANSFER");
-  });
-
-  it("maps unknown methods → UPI (default)", () => {
-    expect(mapMethodToPaymentMode("card")).toBe("UPI");
-    expect(mapMethodToPaymentMode("netbanking")).toBe("UPI");
-    expect(mapMethodToPaymentMode("wallet")).toBe("UPI");
   });
 });

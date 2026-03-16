@@ -16,6 +16,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 
+import { resolveAuditSnapshot } from "@/lib/audit";
 import { getAuthSession } from "@/lib/auth";
 import { requireRole, requirePasswordChanged } from "@/lib/permissions";
 import { auditLogQuerySchema } from "@/lib/validators";
@@ -82,7 +83,6 @@ export async function GET(request: NextRequest) {
         take: limit,
         select: {
           id: true,
-          transactionSnapshot: true,
           transactionId: true,
           performedById: true,
           createdAt: true,
@@ -116,7 +116,10 @@ export async function GET(request: NextRequest) {
     ]);
 
     return NextResponse.json({
-      data: entries,
+      data: entries.map((entry) => ({
+        ...entry,
+        transactionSnapshot: resolveAuditSnapshot(entry),
+      })),
       pagination: {
         page,
         limit,

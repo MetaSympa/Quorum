@@ -159,8 +159,8 @@ function isIncomingEntry(entry: AuditEntry): boolean {
 
 function getCategoryBadgeClass(entry: AuditEntry): string {
   return isIncomingEntry(entry)
-    ? "border-green-200 bg-green-50 text-green-700"
-    : "border-red-200 bg-red-50 text-red-700";
+    ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+    : "border-rose-200 bg-rose-50 text-rose-700";
 }
 
 function getSenderReceiverName(entry: AuditEntry): string {
@@ -380,8 +380,8 @@ export default function AuditLogPage() {
     <div className="space-y-6 p-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Financial Audit Log</h1>
-          <p className="text-muted-foreground text-sm mt-1">
+          <h1 className="text-2xl font-bold tracking-tight text-slate-900">Financial Audit Log</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
             Append-only record of all financial events. Read-only.
           </p>
         </div>
@@ -476,7 +476,7 @@ export default function AuditLogPage() {
                 {entries.map((entry) => (
                   <TableRow
                     key={entry.id}
-                    className="cursor-pointer hover:bg-muted/50"
+                    className="cursor-pointer hover:bg-sky-50/60"
                     onClick={() => setSelectedEntry(entry)}
                   >
                     <TableCell className="whitespace-nowrap text-sm">
@@ -495,7 +495,7 @@ export default function AuditLogPage() {
                     </TableCell>
                     <TableCell className="text-right font-mono font-medium text-sm">
                       {entry.transaction ? (
-                        <span className={isIncomingEntry(entry) ? "text-green-700" : "text-red-700"}>
+                        <span className={isIncomingEntry(entry) ? "text-emerald-700" : "text-rose-700"}>
                           {formatAmount(entry.transaction.amount)}
                         </span>
                       ) : "—"}

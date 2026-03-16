@@ -234,3 +234,280 @@ describe("getSessionUser", () => {
     expect(user?.role).toBe("ADMIN");
   });
 });
+
+// ---------------------------------------------------------------------------
+// Auth behavior tests — authorize, getAuthSession, rate limiting, callbacks
+// ---------------------------------------------------------------------------
+
+import { vi, beforeEach } from "vitest";
+
+vi.mock("@/lib/prisma", () => ({
+  prisma: {
+    user: { findUnique: vi.fn() },
+    subMember: { findUnique: vi.fn() },
+    activityLog: { create: vi.fn() },
+  },
+}));
+
+vi.mock("next-auth/jwt", () => ({
+  getToken: vi.fn(),
+}));
+
+vi.mock("bcryptjs", () => ({
+  default: { compare: vi.fn() },
+  compare: vi.fn(),
+}));
+
+vi.mock("@/lib/rate-limit", () => ({
+  rateLimit: vi.fn().mockReturnValue({ success: true, remaining: 4, resetAt: new Date() }),
+  LOGIN_RATE_LIMIT: { maxAttempts: 5, windowMs: 900000 },
+}));
+
+import { prisma } from "@/lib/prisma";
+import { getToken } from "next-auth/jwt";
+import bcrypt from "bcryptjs";
+import { getAuthSession, authOptions } from "@/lib/auth";
+import { rateLimit } from "@/lib/rate-limit";
+import { NextRequest } from "next/server";
+
+const authorize = authOptions.providers[0].options?.authorize;
+
+beforeEach(() => {
+  vi.clearAllMocks();
+});
+
+// ---------------------------------------------------------------------------
+// getAuthSession
+// ---------------------------------------------------------------------------
+
+describe("getAuthSession", () => {
+  it("returns session when valid token exists", async () => {
+    vi.mocked(getToken).mockResolvedValue({
+      sub: "user-1",
+      email: "test@example.com",
+      name: "Test",
+      role: "ADMIN",
+      memberId: "DPS-001",
+      isTempPassword: false,
+      isSubMember: false,
+    } as never);
+
+    const req = new NextRequest("http://localhost/api/test");
+    const session = await getAuthSession(req);
+
+    expect(session).not.toBeNull();
+    expect(session!.user.id).toBe("user-1");
+    expect(session!.user.role).toBe("ADMIN");
+    expect(session!.user.isSubMember).toBe(false);
+  });
+
+  it("returns null when no token", async () => {
+    vi.mocked(getToken).mockResolvedValue(null);
+
+    const req = new NextRequest("http://localhost/api/test");
+    const session = await getAuthSession(req);
+
+    expect(session).toBeNull();
+  });
+
+  it("includes parentUserId for sub-member tokens", async () => {
+    vi.mocked(getToken).mockResolvedValue({
+      sub: "sub-1",
+      email: "sub@example.com",
+      name: "Sub",
+      role: "MEMBER",
+      memberId: "DPS-001-01",
+      isTempPassword: false,
+      isSubMember: true,
+      parentUserId: "parent-1",
+    } as never);
+
+    const req = new NextRequest("http://localhost/api/test");
+    const session = await getAuthSession(req);
+
+    expect(session!.user.isSubMember).toBe(true);
+    expect(session!.user.parentUserId).toBe("parent-1");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// authorize — User login
+// ---------------------------------------------------------------------------
+
+describe("authorize — User login", () => {
+  it("returns user on valid credentials", async () => {
+    vi.mocked(prisma.user.findUnique).mockResolvedValue({
+      id: "user-1",
+      email: "admin@test.com",
+      name: "Admin",
+      role: "ADMIN",
+      memberId: "DPS-001",
+      password: "hashed",
+      isTempPassword: false,
+    } as never);
+    vi.mocked(bcrypt.compare).mockResolvedValue(true as never);
+
+    const result = await authorize!(
+      { email: "admin@test.com", password: "correct" },
+      {} as never
+    );
+
+    expect(result).not.toBeNull();
+    expect(result!.id).toBe("user-1");
+    expect(result!.role).toBe("ADMIN");
+    expect((result as { isSubMember: boolean }).isSubMember).toBe(false);
+  });
+
+  it("returns null for wrong password", async () => {
+    vi.mocked(prisma.user.findUnique).mockResolvedValue({
+      id: "user-1",
+      email: "admin@test.com",
+      name: "Admin",
+      role: "ADMIN",
+      memberId: "DPS-001",
+      password: "hashed",
+      isTempPassword: false,
+    } as never);
+    vi.mocked(bcrypt.compare).mockResolvedValue(false as never);
+
+    const result = await authorize!(
+      { email: "admin@test.com", password: "wrong" },
+      {} as never
+    );
+
+    expect(result).toBeNull();
+  });
+
+  it("returns null for missing credentials", async () => {
+    const result = await authorize!(
+      { email: "", password: "" },
+      {} as never
+    );
+    expect(result).toBeNull();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// authorize — SubMember login
+// ---------------------------------------------------------------------------
+
+describe("authorize — SubMember login", () => {
+  beforeEach(() => {
+    vi.mocked(prisma.user.findUnique).mockResolvedValue(null);
+  });
+
+  it("authenticates sub-member with valid credentials", async () => {
+    vi.mocked(prisma.subMember.findUnique).mockResolvedValue({
+      id: "sub-1",
+      email: "sub@test.com",
+      name: "Sub Member",
+      memberId: "DPS-001-01",
+      password: "hashed",
+      isTempPassword: false,
+      canLogin: true,
+      parentUserId: "user-1",
+      parentUser: { role: "MEMBER" },
+    } as never);
+    vi.mocked(bcrypt.compare).mockResolvedValue(true as never);
+
+    const result = await authorize!(
+      { email: "sub@test.com", password: "correct" },
+      {} as never
+    );
+
+    expect(result).not.toBeNull();
+    expect((result as { isSubMember: boolean }).isSubMember).toBe(true);
+    expect((result as { parentUserId: string }).parentUserId).toBe("user-1");
+  });
+
+  it("blocks disabled sub-member login (canLogin=false)", async () => {
+    vi.mocked(prisma.subMember.findUnique).mockResolvedValue({
+      id: "sub-1",
+      email: "sub@test.com",
+      name: "Sub Member",
+      memberId: "DPS-001-01",
+      password: "hashed",
+      isTempPassword: false,
+      canLogin: false,
+      parentUserId: "user-1",
+      parentUser: { role: "MEMBER" },
+    } as never);
+
+    const result = await authorize!(
+      { email: "sub@test.com", password: "correct" },
+      {} as never
+    );
+
+    expect(result).toBeNull();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Login rate limiting
+// ---------------------------------------------------------------------------
+
+describe("authorize — login rate limiting", () => {
+  it("returns null when rate limited", async () => {
+    vi.mocked(rateLimit).mockReturnValue({
+      success: false,
+      remaining: 0,
+      resetAt: new Date(),
+    });
+
+    const result = await authorize!(
+      { email: "test@test.com", password: "any" },
+      {} as never
+    );
+
+    expect(result).toBeNull();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// JWT/session callbacks
+// ---------------------------------------------------------------------------
+
+describe("authOptions callbacks", () => {
+  it("jwt callback persists user fields on sign-in", async () => {
+    const jwtCb = authOptions.callbacks!.jwt!;
+    const token = await jwtCb({
+      token: {},
+      user: {
+        id: "user-1",
+        email: "test@test.com",
+        name: "Test",
+        role: "ADMIN",
+        memberId: "DPS-001",
+        isTempPassword: false,
+        isSubMember: false,
+      },
+      account: null,
+      trigger: "signIn",
+    } as never);
+
+    expect(token.sub).toBe("user-1");
+    expect(token.role).toBe("ADMIN");
+    expect(token.memberId).toBe("DPS-001");
+    expect(token.isSubMember).toBe(false);
+  });
+
+  it("session callback exposes token fields to client", async () => {
+    const sessionCb = authOptions.callbacks!.session!;
+    const session = await sessionCb({
+      session: { user: {}, expires: "" },
+      token: {
+        sub: "user-1",
+        email: "test@test.com",
+        name: "Test",
+        role: "ADMIN",
+        memberId: "DPS-001",
+        isTempPassword: false,
+        isSubMember: false,
+      },
+    } as never);
+
+    expect(session.user.id).toBe("user-1");
+    expect(session.user.role).toBe("ADMIN");
+    expect(session.user.memberId).toBe("DPS-001");
+  });
+});

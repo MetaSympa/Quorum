@@ -43,6 +43,10 @@ import {
   getRateLimitKey,
   WEBHOOK_RATE_LIMIT,
 } from "@/lib/rate-limit";
+import {
+  isSponsorPayment,
+  handleSponsorWebhookPayment,
+} from "@/lib/services/webhook-sponsor-handler";
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -258,6 +262,31 @@ async function handlePaymentCaptured(
 
   // ---- Parse notes from order ----
   const notes = payment.notes ?? {};
+
+  // ---- Delegate sponsor payments to the dedicated handler ----
+  if (isSponsorPayment(notes)) {
+    const sponsorResult = await handleSponsorWebhookPayment(
+      {
+        razorpayPaymentId: paymentId,
+        razorpayOrderId: payment.order_id,
+        amountPaise: payment.amount,
+        method: payment.method,
+        upiVpa: payment.vpa,
+        bankName:
+          payment.bank_transfer?.payer_bank_account?.bank_name ?? payment.bank,
+        senderBankAccount:
+          payment.bank_transfer?.payer_bank_account?.account_number,
+        contact: payment.contact,
+        notes,
+      },
+      systemUid
+    );
+    if (!sponsorResult.success) {
+      console.error(`[webhook] Sponsor handler error: ${sponsorResult.error}`);
+    }
+    return; // sponsor handler handles its own logging
+  }
+
   const memberId = notes.memberId ?? null;
   const sponsorId = notes.sponsorId ?? null;
   const membershipType = (notes.membershipType ?? null) as MembershipType | null;

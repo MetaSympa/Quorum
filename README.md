@@ -1,8 +1,10 @@
-# DPS Dashboard
+# Quorum
 
-**Deshapriya Park Sarbojanin Durgotsav — Club Management Dashboard**
+**Community membership management — built for transparency.**
 
-Full-stack management dashboard for one of Kolkata's most iconic Durga Puja clubs (est. 1938). Handles members, finances, sponsorships, approvals, and notifications for Deshapriya Park Durgotsab Samity.
+A self-hosted dashboard for membership organizations, community clubs, and committees. Handles members, payments, sponsorships, approvals, and financial audit — all from a single deployable application.
+
+Open source. Self-hosted. No vendor lock-in.
 
 ---
 
@@ -58,9 +60,9 @@ Set `NEXT_PUBLIC_TEST_MODE=true` to show auto-fill buttons on the login page.
 
 ---
 
-## Environment Variables Checklist
+## Environment Variables
 
-Copy `.env.example` to `.env` and fill in these values before starting:
+Copy `.env.example` to `.env` and fill in:
 
 | Variable | Required | How to get it |
 |----------|----------|---------------|
@@ -75,7 +77,7 @@ Copy `.env.example` to `.env` and fill in these values before starting:
 | `RAZORPAY_TEST_MODE` | Yes | `true` for development, `false` for production |
 | `CRON_SECRET` | Yes | Any random string, e.g. `openssl rand -base64 24` |
 | `APP_URL` | Yes | `http://localhost:3000` (or your domain) |
-| `WHATSAPP_API_TOKEN` | No | Meta Cloud API token (optional, skip if not needed) |
+| `WHATSAPP_API_TOKEN` | No | Meta Cloud API token (optional) |
 | `WHATSAPP_PHONE_NUMBER_ID` | No | Meta WhatsApp Business phone number ID |
 
 ---
@@ -88,32 +90,31 @@ Copy `.env.example` to `.env` and fill in these values before starting:
 | Database | PostgreSQL 16 + Prisma ORM |
 | Authentication | NextAuth.js (JWT + HTTP-only cookies) |
 | UI | Tailwind CSS + shadcn/ui |
-| Payments | Razorpay (UPI + Bank Transfer via Virtual Accounts) |
-| Notifications | WhatsApp (Meta Cloud API) |
+| Payments | Razorpay (UPI + Bank Transfer) |
+| Notifications | WhatsApp (Meta Cloud API, optional) |
 | Encryption | AES-256-GCM (field-level, PII at rest) |
 | Testing | Vitest + React Testing Library |
-| Deployment | Docker Compose + Caddy (HTTPS auto-configured) |
+| Deployment | Docker Compose + Caddy |
 
 ---
 
 ## Features
 
-- Member management with DPC-YYYY-NNNN-SS ID system
-- Sub-member support (up to 3 per primary member, with own login)
-- Membership lifecycle: Monthly / Half-yearly / Annual (Rs. 250 / 1,500 / 3,000)
-- One-time application fee: Rs. 10,000
-- Universal approval queue for all operator actions
-- Cash management with full audit trail
-- Razorpay UPI and bank transfer (NEFT/RTGS/IMPS) with auto-detection via webhooks
-- Sponsor link generation with public checkout page
-- Financial audit log (append-only, full transaction data)
-- System activity log (all user actions)
-- WhatsApp notifications (8 template types, graceful skip if unconfigured)
-- Role-based access: Admin / Operator / Member
-- AES-256 encryption for phone numbers, addresses, and bank details
-- Printable A5 receipts for members and sponsors
-- Membership expiry reminders (15-day advance) and auto-expiry cron
-- Daily PostgreSQL backup with 30-day retention
+- **Member management** with auto-generated hierarchical IDs
+- **Sub-member support** — up to 3 per primary member, each with own login
+- **Flexible membership tiers** — Monthly, Half-yearly, Annual with configurable fees
+- **Universal approval queue** — all operator actions require admin sign-off
+- **Cash management** with full audit trail
+- **Online payments** — UPI and bank transfer with auto-detection via webhooks
+- **Sponsor management** — token-based public checkout links with configurable tiers
+- **Financial audit log** — append-only, immutable, full transaction data
+- **Activity log** — all user actions including failed login attempts
+- **WhatsApp notifications** — 8 template types, graceful skip if unconfigured
+- **Role-based access** — Admin / Operator / Member with scoped dashboards
+- **PII encryption** — AES-256-GCM for phone, address, and bank details
+- **Printable receipts** — auto-increment numbering for members and sponsors
+- **Membership expiry** — 15-day advance reminders and auto-expiry cron
+- **Daily backups** — PostgreSQL pg_dump with 30-day retention
 
 ---
 
@@ -140,21 +141,21 @@ src/
 │   ├── auth.ts                  # NextAuth config
 │   ├── permissions.ts           # Role-based access helpers
 │   ├── encrypt.ts               # AES-256-GCM field encryption
-│   ├── razorpay.ts              # Razorpay client + HMAC verification
-│   ├── whatsapp.ts              # Meta Cloud API client
+│   ├── razorpay.ts              # Payment gateway client
+│   ├── whatsapp.ts              # Notification client
 │   ├── validators.ts            # Zod schemas for all API inputs
-│   ├── rate-limit.ts            # In-memory sliding window rate limiter
-│   └── audit.ts                 # Append-only audit + activity log helpers
+│   ├── rate-limit.ts            # Sliding window rate limiter
+│   └── audit.ts                 # Append-only audit + activity log
 └── types/
     └── index.ts                 # Shared TypeScript types
 
 prisma/
 ├── schema.prisma                # 10 models, 10 enums
-└── seed.ts                      # Test data (1 admin, 1 operator, 5 members)
+└── seed.ts                      # Test data (admin, operator, members)
 
 scripts/
 ├── backup.sh                    # Daily pg_dump, 30-day retention
-└── restore.sh                   # Restore from backup file
+└── restore.sh                   # Restore from backup
 
 tests/
 ├── unit/                        # Business logic tests
@@ -168,20 +169,21 @@ tests/
 
 | Document | Description |
 |----------|-------------|
-| [docs/setup-guide.md](docs/setup-guide.md) | Local development setup (Node + PostgreSQL or Docker) |
-| [docs/deployment-guide.md](docs/deployment-guide.md) | Production deployment to LunaNode VPS |
-| [docs/api-reference.md](docs/api-reference.md) | All API routes with request/response schemas |
-| [docs/data-model.md](docs/data-model.md) | Database models, relationships, and enum values |
-| [docs/security.md](docs/security.md) | Auth, encryption, rate limiting, backup/restore |
-| [docs/approval-flow.md](docs/approval-flow.md) | Universal approval system walkthrough |
-| [docs/razorpay-setup.md](docs/razorpay-setup.md) | Razorpay account, webhook, and test mode |
-| [docs/whatsapp-setup.md](docs/whatsapp-setup.md) | Meta Business account and message templates |
-| [docs/testing-guide.md](docs/testing-guide.md) | Running tests, seed accounts, writing new tests |
-| [docs/architecture.md](docs/architecture.md) | Tech stack, module structure, data flow |
+| [Setup Guide](docs/setup-guide.md) | Local development (Node + PostgreSQL or Docker) |
+| [Deployment Guide](docs/deployment-guide.md) | Production deployment with Docker Compose + Caddy |
+| [API Reference](docs/api-reference.md) | All API routes with request/response schemas |
+| [Data Model](docs/data-model.md) | Database models, relationships, and enums |
+| [Security](docs/security.md) | Auth, encryption, rate limiting, backup/restore |
+| [Approval Flow](docs/approval-flow.md) | Universal approval system walkthrough |
+| [Razorpay Setup](docs/razorpay-setup.md) | Payment gateway configuration |
+| [WhatsApp Setup](docs/whatsapp-setup.md) | Notification setup (optional) |
+| [Testing Guide](docs/testing-guide.md) | Running tests, seed accounts, writing new tests |
+| [Architecture](docs/architecture.md) | Tech stack, module structure, data flow |
+| [Server Hardening](docs/server-hardening.md) | VPS security checklist |
 
 ---
 
-## Useful Commands
+## Commands
 
 ```bash
 npm run dev              # Start development server
@@ -197,4 +199,4 @@ npm run db:seed          # Load seed data
 
 ## License
 
-Private — Deshapriya Park Durgotsab Samity
+MIT

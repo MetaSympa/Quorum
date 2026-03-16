@@ -408,7 +408,7 @@ export const approvalListQuerySchema = z.object({
       "MEMBERSHIP",
     ])
     .optional(),
-  status: z.enum(["PENDING", "APPROVED", "REJECTED"]).optional(),
+  status: z.enum(["PENDING", "APPROVED", "REJECTED", "ALL"]).optional(),
   dateFrom: z.string().optional(),
   dateTo: z.string().optional(),
   page: z.coerce.number().int().min(1).default(1),

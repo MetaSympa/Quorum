@@ -1,6 +1,6 @@
 # Security
 
-This document describes the security measures implemented in DPS Dashboard, covering application security, server hardening, and data protection.
+This document describes the security measures implemented in Quorum, covering application security, server hardening, and data protection.
 
 ---
 

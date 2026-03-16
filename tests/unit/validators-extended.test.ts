@@ -440,6 +440,10 @@ describe("approvalListQuerySchema", () => {
     expect(approvalListQuerySchema.safeParse({ status: "REJECTED" }).success).toBe(true);
   });
 
+  it("accepts status ALL", () => {
+    expect(approvalListQuerySchema.safeParse({ status: "ALL" }).success).toBe(true);
+  });
+
   it("rejects invalid status", () => {
     expect(approvalListQuerySchema.safeParse({ status: "CANCELLED" }).success).toBe(false);
   });

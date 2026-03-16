@@ -9,7 +9,7 @@ export default function PrintButton() {
     <button
       type="button"
       onClick={() => window.print()}
-      className="no-print inline-flex items-center gap-2 px-4 py-1.5 rounded-md bg-orange-500 text-white text-sm font-semibold hover:bg-orange-600 active:bg-orange-700 transition-colors shadow-sm"
+      className="no-print inline-flex items-center gap-2 rounded-xl bg-slate-900 px-4 py-1.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-sky-600 active:bg-sky-700"
     >
       🖨️ Print Form
     </button>

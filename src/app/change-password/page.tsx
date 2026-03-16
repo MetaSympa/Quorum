@@ -103,19 +103,20 @@ export default function ChangePasswordPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100 p-4">
+    <div className="flex min-h-screen items-center justify-center bg-[radial-gradient(circle_at_top,_rgba(56,189,248,0.22),_transparent_20rem),linear-gradient(180deg,#eff6ff_0%,#f8fafc_45%,#eef2ff_100%)] p-4">
       <div className="w-full max-w-md">
-        {/* Club branding */}
-        <div className="text-center mb-8">
-          <h1 className="text-2xl font-bold text-slate-900">
+        <div className="mb-8 text-center">
+          <h1 className="text-2xl font-bold tracking-tight text-slate-900">
             Deshapriya Park Durga Puja Club
           </h1>
-          <p className="text-sm text-slate-500 mt-1">Management Dashboard</p>
+          <p className="mt-1 text-sm uppercase tracking-[0.22em] text-sky-700">
+            Management Dashboard
+          </p>
         </div>
 
-        <Card className="shadow-lg">
+        <Card className="border-white/80 bg-white/85 shadow-[0_30px_80px_-40px_rgba(15,23,42,0.45)]">
           <CardHeader className="space-y-1">
-            <CardTitle className="text-xl">Set your password</CardTitle>
+            <CardTitle className="text-xl tracking-tight">Set your password</CardTitle>
             <CardDescription>
               You are using a temporary password. Please set a new password to
               continue.
@@ -126,7 +127,7 @@ export default function ChangePasswordPage() {
             <CardContent className="space-y-4">
               {/* Error message */}
               {error && (
-                <div className="rounded-md bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">
+                <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
                   {error}
                 </div>
               )}
@@ -194,7 +195,7 @@ export default function ChangePasswordPage() {
               <Button
                 type="button"
                 variant="ghost"
-                className="w-full text-slate-500 text-sm"
+                className="w-full text-sm text-slate-500 hover:text-sky-700"
                 onClick={handleSignOut}
                 disabled={loading}
               >

@@ -1,6 +1,6 @@
 # WhatsApp Setup
 
-DPS Dashboard sends WhatsApp notifications via the Meta Cloud API using pre-approved Business message templates. This document covers account creation, API token setup, and template registration.
+Quorum sends WhatsApp notifications via the Meta Cloud API using pre-approved Business message templates. This document covers account creation, API token setup, and template registration.
 
 WhatsApp is entirely optional. If the environment variables are left empty, all notification calls return silently without errors. The system works fully without WhatsApp configured.
 
@@ -9,7 +9,7 @@ WhatsApp is entirely optional. If the environment variables are left empty, all 
 ## 1. Create a Meta Business Account
 
 1. Go to https://business.facebook.com and sign up
-2. Complete business verification with your organisation details
+2. Complete business verification with your organization's details
 3. Note your **Business Account ID** from the Business Settings overview
 
 ---
@@ -88,7 +88,7 @@ The following 8 templates must be registered. Template names are exact — do no
 
 **Body**:
 ```
-New approval request received for {{1}} submitted by {{2}}. Please review in the DPS Dashboard approval queue.
+New approval request received for {{1}} submitted by {{2}}. Please review in the Quorum approval queue.
 ```
 
 **Parameters**: `{{1}}` = entity type (e.g. "MEMBER ADD"), `{{2}}` = requester name
@@ -103,7 +103,7 @@ New approval request received for {{1}} submitted by {{2}}. Please review in the
 
 **Body**:
 ```
-Payment received: Rs. {{1}} from {{2}} via {{3}}. Please review in the DPS Dashboard.
+Payment received: Rs. {{1}} from {{2}} via {{3}}. Please review in the Quorum dashboard.
 ```
 
 **Parameters**: `{{1}}` = amount, `{{2}}` = member/payer name, `{{3}}` = payment mode (UPI/BANK_TRANSFER/CASH)
@@ -133,7 +133,7 @@ New member registration: {{1}} (ID: {{2}}) has been added and is pending approva
 
 **Body**:
 ```
-Welcome to Deshapriya Park Durgotsab Samity, {{1}}! Your membership has been approved. Login at {{2}} using email: {{3}} and temporary password: {{4}}. Please change your password on first login.
+Welcome to the organization, {{1}}! Your membership has been approved. Login at {{2}} using email: {{3}} and temporary password: {{4}}. Please change your password on first login.
 ```
 
 **Parameters**: `{{1}}` = member name, `{{2}}` = login URL, `{{3}}` = email, `{{4}}` = temporary password
@@ -148,7 +148,7 @@ Welcome to Deshapriya Park Durgotsab Samity, {{1}}! Your membership has been app
 
 **Body**:
 ```
-Reminder: {{1}}, your DPS membership expires in {{2}} days on {{3}}. Please renew to avoid interruption.
+Reminder: {{1}}, your membership expires in {{2}} days on {{3}}. Please renew to avoid interruption.
 ```
 
 **Parameters**: `{{1}}` = member name, `{{2}}` = days remaining, `{{3}}` = expiry date (DD/MM/YYYY)
@@ -163,7 +163,7 @@ Reminder: {{1}}, your DPS membership expires in {{2}} days on {{3}}. Please rene
 
 **Body**:
 ```
-Dear {{1}} (ID: {{2}}), your DPS membership has expired. Please contact the club to renew.
+Dear {{1}} (ID: {{2}}), your membership has expired. Please contact the organization to renew.
 ```
 
 **Parameters**: `{{1}}` = member name, `{{2}}` = member ID
@@ -178,7 +178,7 @@ Dear {{1}} (ID: {{2}}), your DPS membership has expired. Please contact the club
 
 **Body**:
 ```
-Sponsor payment received from {{1}}: Rs. {{2}} for {{3}}. Thank you for supporting Deshapriya Park Durga Puja.
+Sponsor payment received from {{1}}: Rs. {{2}} for {{3}}. Thank you for your support.
 ```
 
 **Parameters**: `{{1}}` = sponsor name, `{{2}}` = amount, `{{3}}` = sponsor purpose (e.g. "GOLD SPONSOR")
@@ -206,7 +206,7 @@ Your {{1}} request has been rejected. Reason: {{2}}. Please contact an admin for
 
 Meta Cloud API provides 1,000 free conversations per month per WhatsApp Business account. A "conversation" is a 24-hour messaging window opened by a business-initiated template message.
 
-For a club with under 500 members and typical notification volume (payments, renewals, approvals), the free tier is sufficient.
+For an organization with under 500 members and typical notification volume (payments, renewals, approvals), the free tier is sufficient.
 
 ---
 

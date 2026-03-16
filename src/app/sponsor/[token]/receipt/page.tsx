@@ -187,14 +187,14 @@ export default function SponsorReceiptPage({
   // Loading / retrying
   if (loading || retrying) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-orange-50 to-amber-50 flex items-center justify-center p-4">
-        <div className="bg-white rounded-2xl shadow-lg p-8 w-full max-w-md text-center">
-          <LoaderIcon className="h-8 w-8 animate-spin text-orange-500 mx-auto mb-4" />
-          <h2 className="text-lg font-bold text-gray-800 mb-2">
+      <div className="flex min-h-screen items-center justify-center bg-[radial-gradient(circle_at_top,_rgba(56,189,248,0.2),_transparent_20rem),linear-gradient(180deg,#eff6ff_0%,#f8fafc_55%,#eef2ff_100%)] p-4">
+        <div className="w-full max-w-md rounded-[1.75rem] border border-white/80 bg-white/90 p-8 text-center shadow-[0_32px_80px_-40px_rgba(15,23,42,0.45)]">
+          <LoaderIcon className="mx-auto mb-4 h-8 w-8 animate-spin text-sky-500" />
+          <h2 className="mb-2 text-lg font-bold text-slate-900">
             {retryCount > 0 ? "Generating Receipt..." : "Loading..."}
           </h2>
           {retryCount > 0 && (
-            <p className="text-sm text-gray-500">
+            <p className="text-sm text-slate-500">
               Your payment was received. The receipt is being generated
               {retryCount > 1 ? ` (attempt ${retryCount}/${MAX_RETRIES})` : ""}...
             </p>
@@ -207,32 +207,32 @@ export default function SponsorReceiptPage({
   // Error state
   if (errorMsg || !receipt) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-orange-50 to-amber-50 flex items-center justify-center p-4">
-        <div className="bg-white rounded-2xl shadow-lg p-8 w-full max-w-md">
+      <div className="flex min-h-screen items-center justify-center bg-[radial-gradient(circle_at_top,_rgba(56,189,248,0.2),_transparent_20rem),linear-gradient(180deg,#eff6ff_0%,#f8fafc_55%,#eef2ff_100%)] p-4">
+        <div className="w-full max-w-md rounded-[1.75rem] border border-white/80 bg-white/90 p-8 shadow-[0_32px_80px_-40px_rgba(15,23,42,0.45)]">
           {/* Payment was received even if receipt generation failed */}
           {paymentId && (
-            <div className="bg-green-50 border border-green-200 rounded-xl p-4 mb-6">
+            <div className="mb-6 rounded-xl border border-emerald-200 bg-emerald-50 p-4">
               <div className="flex items-center gap-3">
-                <CheckCircleIcon className="h-5 w-5 text-green-600 flex-shrink-0" />
+                <CheckCircleIcon className="h-5 w-5 flex-shrink-0 text-emerald-600" />
                 <div>
-                  <p className="text-sm font-semibold text-green-800">Payment Received</p>
-                  <p className="text-xs text-green-600 font-mono mt-1">{paymentId}</p>
+                  <p className="text-sm font-semibold text-emerald-800">Payment Received</p>
+                  <p className="mt-1 font-mono text-xs text-emerald-600">{paymentId}</p>
                 </div>
               </div>
             </div>
           )}
 
           <AlertCircleIcon className="h-10 w-10 text-amber-400 mx-auto mb-3" />
-          <h1 className="text-lg font-bold text-gray-800 text-center mb-2">Receipt Unavailable</h1>
-          <p className="text-sm text-gray-500 text-center mb-6">
+          <h1 className="mb-2 text-center text-lg font-bold text-slate-900">Receipt Unavailable</h1>
+          <p className="mb-6 text-center text-sm text-slate-500">
             {errorMsg ?? "Unable to load receipt data."}
           </p>
 
           {paymentId && (
-            <div className="bg-gray-50 rounded-lg p-3 mb-6">
-              <p className="text-xs text-gray-400 mb-1">Your Payment Reference</p>
-              <p className="text-sm font-mono font-semibold text-gray-800 break-all">{paymentId}</p>
-              <p className="text-xs text-gray-400 mt-2">
+            <div className="mb-6 rounded-lg bg-slate-50 p-3">
+              <p className="mb-1 text-xs text-slate-400">Your Payment Reference</p>
+              <p className="break-all font-mono text-sm font-semibold text-slate-800">{paymentId}</p>
+              <p className="mt-2 text-xs text-slate-400">
                 Please save this reference number for your records.
               </p>
             </div>
@@ -240,7 +240,7 @@ export default function SponsorReceiptPage({
 
           <Link
             href="/"
-            className="flex items-center justify-center gap-2 w-full bg-orange-500 hover:bg-orange-600 text-white font-semibold py-3 px-4 rounded-xl transition-colors text-sm"
+            className="flex w-full items-center justify-center gap-2 rounded-xl bg-slate-900 px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-sky-600"
           >
             <HomeIcon className="h-4 w-4" />
             Return to Homepage
@@ -255,7 +255,7 @@ export default function SponsorReceiptPage({
   // =========================================================================
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-orange-50 via-amber-50 to-yellow-50">
+    <div className="min-h-screen bg-[radial-gradient(circle_at_top,_rgba(56,189,248,0.22),_transparent_24rem),linear-gradient(180deg,#eff6ff_0%,#f8fafc_55%,#eef2ff_100%)]">
       {/* Print-friendly CSS */}
       <style>{`
         @media print {
@@ -298,11 +298,11 @@ export default function SponsorReceiptPage({
 
       <div className="max-w-lg mx-auto p-4 pt-6">
         {/* Thank you card — hidden on print */}
-        <div className="no-print bg-green-50 border border-green-200 rounded-xl p-4 mb-6 flex items-center gap-4">
-          <CheckCircleIcon className="h-10 w-10 text-green-500 flex-shrink-0" />
+        <div className="no-print mb-6 flex items-center gap-4 rounded-xl border border-emerald-200 bg-emerald-50 p-4">
+          <CheckCircleIcon className="h-10 w-10 flex-shrink-0 text-emerald-500" />
           <div>
-            <h2 className="text-base font-bold text-green-800">Thank You for Your Sponsorship!</h2>
-            <p className="text-sm text-green-600 mt-0.5">
+            <h2 className="text-base font-bold text-emerald-800">Thank You for Your Sponsorship!</h2>
+            <p className="mt-0.5 text-sm text-emerald-600">
               Your contribution helps keep our heritage alive. We are grateful for your support.
             </p>
           </div>
@@ -313,14 +313,14 @@ export default function SponsorReceiptPage({
           <button
             type="button"
             onClick={() => window.print()}
-            className="flex-1 flex items-center justify-center gap-2 bg-white border border-gray-300 hover:border-orange-400 text-gray-700 hover:text-orange-600 font-semibold py-3 px-4 rounded-xl transition-colors text-sm shadow-sm"
+            className="flex-1 flex items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-semibold text-slate-700 shadow-sm transition-colors hover:border-sky-400 hover:text-sky-600"
           >
             <PrinterIcon className="h-4 w-4" />
             Print Receipt
           </button>
           <Link
             href="/"
-            className="flex-1 flex items-center justify-center gap-2 bg-orange-500 hover:bg-orange-600 text-white font-semibold py-3 px-4 rounded-xl transition-colors text-sm shadow-sm"
+            className="flex-1 flex items-center justify-center gap-2 rounded-xl bg-slate-900 px-4 py-3 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-sky-600"
           >
             <HomeIcon className="h-4 w-4" />
             Homepage
@@ -368,16 +368,16 @@ export default function SponsorReceiptPage({
             {/* Receipt title + number */}
             <div className="flex items-start justify-between mb-6">
               <div>
-                <h3 className="text-lg font-bold text-gray-900 uppercase tracking-wide underline">
+                <h3 className="text-lg font-bold uppercase tracking-wide text-slate-900 underline">
                   Sponsorship Receipt
                 </h3>
-                <p className="text-sm text-gray-500 mt-1">
+                <p className="mt-1 text-sm text-slate-500">
                   {formatDate(receipt.date)} at {formatTime(receipt.date)}
                 </p>
               </div>
               <div className="text-right">
-                <p className="text-xs text-gray-400">Receipt No.</p>
-                <p className="text-sm font-bold font-mono text-gray-800">
+                <p className="text-xs text-slate-400">Receipt No.</p>
+                <p className="text-sm font-bold font-mono text-slate-800">
                   {receipt.receiptNumber}
                 </p>
               </div>
@@ -389,25 +389,25 @@ export default function SponsorReceiptPage({
             <div className="space-y-3 mb-5">
               {receipt.sponsorName && (
                 <div className="flex items-baseline gap-2">
-                  <span className="text-xs text-gray-400 w-32 flex-shrink-0 uppercase tracking-wide">
+                  <span className="w-32 flex-shrink-0 text-xs uppercase tracking-wide text-slate-400">
                     Received From
                   </span>
-                  <span className="text-sm font-bold text-gray-900">{receipt.sponsorName}</span>
+                  <span className="text-sm font-bold text-slate-900">{receipt.sponsorName}</span>
                 </div>
               )}
               {receipt.sponsorCompany && (
                 <div className="flex items-baseline gap-2">
-                  <span className="text-xs text-gray-400 w-32 flex-shrink-0 uppercase tracking-wide">
+                  <span className="w-32 flex-shrink-0 text-xs uppercase tracking-wide text-slate-400">
                     Company
                   </span>
-                  <span className="text-sm text-gray-800">{receipt.sponsorCompany}</span>
+                  <span className="text-sm text-slate-800">{receipt.sponsorCompany}</span>
                 </div>
               )}
               <div className="flex items-baseline gap-2">
-                <span className="text-xs text-gray-400 w-32 flex-shrink-0 uppercase tracking-wide">
+                <span className="w-32 flex-shrink-0 text-xs uppercase tracking-wide text-slate-400">
                   Sponsorship Type
                 </span>
-                <span className="text-sm font-semibold text-orange-700">
+                <span className="text-sm font-semibold text-sky-700">
                   {receipt.purposeLabel}
                 </span>
               </div>
@@ -416,28 +416,28 @@ export default function SponsorReceiptPage({
             <div className="border-t border-dashed border-gray-200 mb-5" />
 
             {/* Amount block */}
-            <div className="bg-orange-50 rounded-xl p-4 mb-5">
+            <div className="mb-5 rounded-xl bg-sky-50 p-4">
               <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-600 font-medium">Amount Paid</span>
-                <span className="text-2xl font-bold text-gray-900">
+                <span className="text-sm font-medium text-slate-600">Amount Paid</span>
+                <span className="text-2xl font-bold text-slate-900">
                   {formatCurrency(receipt.amount)}
                 </span>
               </div>
               <div className="flex items-center justify-between mt-2">
-                <span className="text-xs text-gray-400">Payment Mode</span>
-                <span className="text-xs font-semibold text-gray-700">
+                <span className="text-xs text-slate-400">Payment Mode</span>
+                <span className="text-xs font-semibold text-slate-700">
                   {paymentModeLabel(receipt.paymentMode)}
                 </span>
               </div>
             </div>
 
             {/* Payment reference */}
-            <div className="bg-gray-50 rounded-xl p-4 mb-5">
-              <p className="text-xs text-gray-400 mb-1 uppercase tracking-wide">Payment Reference</p>
-              <p className="text-sm font-mono font-semibold text-gray-800 break-all">
+            <div className="mb-5 rounded-xl bg-slate-50 p-4">
+              <p className="mb-1 text-xs uppercase tracking-wide text-slate-400">Payment Reference</p>
+              <p className="break-all font-mono text-sm font-semibold text-slate-800">
                 {receipt.paymentRef}
               </p>
-              <p className="text-xs text-gray-400 mt-1">Date: {formatDateShort(receipt.date)}</p>
+              <p className="mt-1 text-xs text-slate-400">Date: {formatDateShort(receipt.date)}</p>
             </div>
 
             <div className="border-t border-dashed border-gray-200 mb-5" />
@@ -445,14 +445,14 @@ export default function SponsorReceiptPage({
             {/* Footer */}
             <div className="flex items-end justify-between">
               <div>
-                <p className="text-xs text-gray-400 leading-relaxed max-w-48">
+                <p className="max-w-48 text-xs leading-relaxed text-slate-400">
                   This is a computer-generated receipt and does not require a physical signature.
                 </p>
               </div>
               <div className="text-center">
                 <div className="border-t border-gray-400 pt-2 w-24 text-center">
-                  <p className="text-xs text-gray-500">Authorised</p>
-                  <p className="text-xs text-gray-500">Signatory</p>
+                  <p className="text-xs text-slate-500">Authorised</p>
+                  <p className="text-xs text-slate-500">Signatory</p>
                 </div>
               </div>
             </div>
@@ -461,10 +461,10 @@ export default function SponsorReceiptPage({
 
         {/* Footer links — hidden on print */}
         <div className="no-print text-center mt-6 pb-8">
-          <p className="text-xs text-gray-400 mb-2">
+          <p className="mb-2 text-xs text-slate-400">
             A receipt has been generated for your records.
           </p>
-          <p className="text-xs text-gray-400">
+          <p className="text-xs text-slate-400">
             {receipt.clubName} — Est. 1938 — Deshapriya Park, Kolkata
           </p>
         </div>
